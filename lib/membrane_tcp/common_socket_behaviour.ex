@@ -14,7 +14,7 @@ defmodule Membrane.TCP.CommonSocketBehaviour do
         ) :: Base.callback_return()
   def handle_setup(
         ctx,
-        %{local_socket: local_socket, server_socket: server_socket, connection_side: :client} =
+        %{connection_side: :client, local_socket: local_socket, server_socket: server_socket} =
           state
       ) do
     case mockable(Socket).connect(local_socket, server_socket) do
@@ -34,7 +34,7 @@ defmodule Membrane.TCP.CommonSocketBehaviour do
     end
   end
 
-  def handle_setup(ctx, %{local_socket: local_socket, connection_side: :server} = state) do
+  def handle_setup(ctx, %{connection_side: :server, local_socket: local_socket} = state) do
     with {:ok, listening_socket} <- mockable(Socket).listen(local_socket),
          {:ok, connected_socket} <- mockable(Socket).accept(listening_socket) do
       notification = {:connection_info, connected_socket.ip_address, connected_socket.port_no}

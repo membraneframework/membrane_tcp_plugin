@@ -9,28 +9,44 @@ defmodule Membrane.TCP.Sink do
   alias Membrane.Buffer
   alias Membrane.TCP.{CommonSocketBehaviour, Socket}
 
-  def_options destination_address: [
-                spec: :inet.ip_address(),
-                description: "An IP Address that the packets will be sent to."
+  def_options connection_side: [
+                spec: :client | :server,
+                default: :server,
+                description: """
+                Determines whether this element will behave like a server or a client when
+                establishing TCP connection.
+                """
               ],
-              destination_port_no: [
+              server_address: [
+                spec: :inet.ip_address() | nil,
+                default: nil,
+                description: """
+                An IP Address of the server the packets will be sent to.
+                (nil in case of `connection_side: :server`)
+                """
+              ],
+              server_port_no: [
+                spec: :inet.port_number() | nil,
+                default: nil,
+                description: """
+                A TCP port number of the server the packets will be sent to.
+                (nil in case of `connection_side: :server`)
+                """
+              ],
+              local_port_no: [
                 spec: :inet.port_number(),
-                description: "A TCP port number of a target."
+                default: 5000,
+                description: """
+                A TCP port number used when connecting to a listening socket or
+                starting a listening socket.
+                """
               ],
               local_address: [
                 spec: :inet.socket_address(),
                 default: :any,
                 description: """
-                An IP Address set for a TCP socket used to sent packets. It allows to specify which
-                network interface to use if there's more than one.
-                """
-              ],
-              local_port_no: [
-                spec: :inet.port_number(),
-                default: 0,
-                description: """
-                A TCP port number for the socket used to sent packets. If set to `0` (default)
-                the underlying OS will assign a free TCP port.
+                An IP Address from which the socket will connect or will listen on.
+                It allows to choose which network interface to use if there's more than one.
                 """
               ]
 
@@ -39,26 +55,10 @@ defmodule Membrane.TCP.Sink do
   # Private API
 
   @impl true
-  def handle_init(_context, %__MODULE__{} = options) do
-    %__MODULE__{
-      destination_address: dst_address,
-      destination_port_no: dst_port_no,
-      local_address: local_address,
-      local_port_no: local_port_no
-    } = options
+  def handle_init(_context, opts) do
+    {local_socket, server_socket} = Socket.create_socket_pair(Map.from_struct(opts))
 
-    state = %{
-      dst_socket: %Socket{
-        ip_address: dst_address,
-        port_no: dst_port_no
-      },
-      local_socket: %Socket{
-        ip_address: local_address,
-        port_no: local_port_no
-      }
-    }
-
-    {[], state}
+    {[], %{local_socket: local_socket, server_socket: server_socket}}
   end
 
   @impl true
@@ -68,9 +68,9 @@ defmodule Membrane.TCP.Sink do
 
   @impl true
   def handle_buffer(:input, %Buffer{payload: payload}, _context, state) do
-    %{dst_socket: dst_socket, local_socket: local_socket} = state
+    %{local_socket: local_socket} = state
 
-    case mockable(Socket).send(dst_socket, local_socket, payload) do
+    case mockable(Socket).send(local_socket, payload) do
       :ok -> {[], state}
       {:error, cause} -> raise "Error sending TCP packet, reason: #{inspect(cause)}"
     end

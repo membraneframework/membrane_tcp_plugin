@@ -4,36 +4,43 @@ defmodule Membrane.TCP.SourcePipelineTest do
   import Membrane.Testing.Assertions
   import Membrane.ChildrenSpec
 
-  alias Membrane.TCP.Source
+  alias Membrane.TCP.{Socket, Source}
   alias Membrane.Testing.{Pipeline, Sink}
 
   @local_address {127, 0, 0, 1}
-  @local_port_no 5052
-  @destination_port_no 5053
+  @server_port_no 5052
+  @client_port_no 5053
   @values 1..100
   @timeout 2_000
 
   test "100 messages passes through pipeline" do
     data = @values |> Enum.map(&to_string(&1))
 
+    server_socket =
+      %Socket{ip_address: @local_address, port_no: @server_port_no}
+      |> Socket.listen()
+
     assert pipeline =
              Pipeline.start_link_supervised!(
                spec: [
                  child(:tcp_source, %Source{
                    local_address: @local_address,
-                   local_port_no: @destination_port_no
+                   local_port_no: @client_port_no
                  })
                  |> child(:sink, %Sink{})
                ],
                test_process: self()
              )
 
+    server_socket = Socket.accept(server_socket)
+
     # time for a pipeline to enter playing playback
     Process.sleep(100)
 
     Enum.map(data, fn elem ->
-      tcp_like_message = {:tcp, nil, @local_address, @local_port_no, elem}
-      Pipeline.message_child(pipeline, :tcp_source, tcp_like_message)
+      # tcp_like_message = {:tcp, nil, @local_address, @local_port_no, elem}
+      # Pipeline.message_child(pipeline, :tcp_source, tcp_like_message)
+      Socket.send(server_socket, elem)
     end)
 
     Enum.each(data, fn elem ->
@@ -45,7 +52,7 @@ defmodule Membrane.TCP.SourcePipelineTest do
         %Membrane.Buffer{
           metadata: %{
             tcp_source_address: @local_address,
-            tcp_source_port: @local_port_no
+            tcp_source_port: @client_port_no
           },
           payload: ^expected_value
         },

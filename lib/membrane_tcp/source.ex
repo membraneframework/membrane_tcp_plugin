@@ -65,26 +65,11 @@ defmodule Membrane.TCP.Source do
   def_output_pad :output, accepted_format: %RemoteStream{type: :packetized}, flow_control: :push
 
   @impl true
-  def handle_init(_context, %__MODULE__{} = opts) do
-    socket = %Socket{
-      ip_address: opts.local_address,
-      port_no: opts.local_port_no,
-      sock_opts: [recbuf: opts.recv_buffer_size]
-    }
+  def handle_init(_context, opts) do
+    {local_socket, server_socket} =
+      Socket.create_socket_pair(Map.from_struct(opts), recbuf: opts.recv_buffer_size)
 
-    server_socket =
-      case opts do
-        %__MODULE__{connection_side: :server} ->
-          nil
-
-        %__MODULE__{connection_side: :client, server_address: address, server_port_no: port_no} ->
-          %Socket{
-            ip_address: address,
-            port_no: port_no
-          }
-      end
-
-    {[], %{local_socket: socket, server_socket: server_socket}}
+    {[], %{local_socket: local_socket, server_socket: server_socket}}
   end
 
   @impl true

@@ -9,15 +9,15 @@ defmodule Membrane.TCP.SourcePipelineTest do
 
   @local_address {127, 0, 0, 1}
   @server_port_no 5052
-  @client_port_no 5053
-  @values 1..100
   @timeout 2_000
 
-  test "100 messages passes through pipeline" do
-    data = @values |> Enum.map(&to_string(&1))
+  @payload_frames 100
 
-    server_socket =
-      %Socket{ip_address: @local_address, port_no: @server_port_no}
+  test "100 messages passes through pipeline" do
+    data = 1..@payload_frames |> Enum.map(&"(#{&1})")
+
+    {:ok, listening_server_socket} =
+      %Socket{ip_address: @local_address, port_no: @server_port_no, sock_opts: [reuseaddr: true]}
       |> Socket.listen()
 
     assert pipeline =
@@ -25,41 +25,47 @@ defmodule Membrane.TCP.SourcePipelineTest do
                spec: [
                  child(:tcp_source, %Source{
                    local_address: @local_address,
-                   local_port_no: @client_port_no
+                   server_address: @local_address,
+                   server_port_no: @server_port_no
                  })
                  |> child(:sink, %Sink{})
                ],
                test_process: self()
              )
 
-    server_socket = Socket.accept(server_socket)
-
+    {:ok, server_socket} = Socket.accept(listening_server_socket)
     # time for a pipeline to enter playing playback
     Process.sleep(100)
 
     Enum.map(data, fn elem ->
-      # tcp_like_message = {:tcp, nil, @local_address, @local_port_no, elem}
       # Pipeline.message_child(pipeline, :tcp_source, tcp_like_message)
       Socket.send(server_socket, elem)
     end)
 
-    Enum.each(data, fn elem ->
-      expected_value = to_string(elem)
-
-      assert_sink_buffer(
-        pipeline,
-        :sink,
-        %Membrane.Buffer{
-          metadata: %{
-            tcp_source_address: @local_address,
-            tcp_source_port: @client_port_no
+    received_data =
+      Enum.reduce_while(data, "", fn _elem, acc ->
+        assert_sink_buffer(
+          pipeline,
+          :sink,
+          %Membrane.Buffer{
+            metadata: %{
+              tcp_source_address: @local_address,
+              tcp_source_port: @server_port_no
+            },
+            payload: payload
           },
-          payload: ^expected_value
-        },
-        @timeout
-      )
-    end)
+          @timeout
+        )
+        if String.ends_with?(payload, "(#{@payload_frames})") do
+          {:halt, acc <> payload}
+        else
+          {:cont, acc <> payload}
+        end
+      end)
 
+    assert received_data == Enum.join(data)
     Pipeline.terminate(pipeline)
+    Socket.close(listening_server_socket)
+    Socket.close(server_socket)
   end
 end

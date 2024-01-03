@@ -33,10 +33,10 @@ defmodule Membrane.TCP.Source do
               ],
               local_port_no: [
                 spec: :inet.port_number(),
-                default: 5000,
+                default: 0,
                 description: """
                 A TCP port number used when connecting to a listening socket or
-                starting a listening socket.
+                starting a listening socket. If not specified any free port is chosen.
                 """
               ],
               local_address: [
@@ -69,7 +69,12 @@ defmodule Membrane.TCP.Source do
     {local_socket, server_socket} =
       Socket.create_socket_pair(Map.from_struct(opts), recbuf: opts.recv_buffer_size)
 
-    {[], %{local_socket: local_socket, server_socket: server_socket}}
+    {[],
+     %{
+       connection_side: opts.connection_side,
+       local_socket: local_socket,
+       server_socket: server_socket
+     }}
   end
 
   @impl true
@@ -78,24 +83,13 @@ defmodule Membrane.TCP.Source do
   end
 
   @impl true
-  def handle_parent_notification(
-        {:tcp, _socket_handle, _addr, _port_no, _payload} = meta,
-        ctx,
-        state
-      ) do
-    handle_info(meta, ctx, state)
-  end
+  def handle_info({:tcp, socket_handle, payload}, %{playback: :playing}, state) do
+    {:ok, {peer_address, peer_port_no}} = :inet.peername(socket_handle)
 
-  @impl true
-  def handle_info(
-        {:tcp, _socket_handle, address, port_no, payload},
-        %{playback: :playing},
-        state
-      ) do
     metadata =
       Map.new()
-      |> Map.put(:tcp_source_address, address)
-      |> Map.put(:tcp_source_port, port_no)
+      |> Map.put(:tcp_source_address, peer_address)
+      |> Map.put(:tcp_source_port, peer_port_no)
       |> Map.put(:arrival_ts, Membrane.Time.vm_time())
 
     actions = [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}]
@@ -104,14 +98,21 @@ defmodule Membrane.TCP.Source do
   end
 
   @impl true
-  def handle_info(
-        {:tcp, _socket_handle, _address, _port_no, _payload},
-        _ctx,
-        state
-      ) do
+  def handle_info({:tcp, _socket_handle, _address, _port_no, _payload}, _ctx, state) do
+    {[], state}
+  end
+
+  def handle_info({:tcp_closed, _local_socket_handle}, _ctx, state) do
+    Socket.close(state.local_socket)
     {[], state}
   end
 
   @impl true
   defdelegate handle_setup(context, state), to: CommonSocketBehaviour
+
+  @impl true
+  def handle_terminate_request(_ctx, state) do
+    Socket.close(state.local_socket)
+    {[terminate: :normal], state}
+  end
 end

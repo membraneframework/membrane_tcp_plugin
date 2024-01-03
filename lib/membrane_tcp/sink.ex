@@ -4,8 +4,6 @@ defmodule Membrane.TCP.Sink do
   """
   use Membrane.Sink
 
-  import Mockery.Macro
-
   alias Membrane.Buffer
   alias Membrane.TCP.{CommonSocketBehaviour, Socket}
 
@@ -35,10 +33,10 @@ defmodule Membrane.TCP.Sink do
               ],
               local_port_no: [
                 spec: :inet.port_number(),
-                default: 5000,
+                default: 0,
                 description: """
                 A TCP port number used when connecting to a listening socket or
-                starting a listening socket.
+                starting a listening socket. If not specified any free port is chosen.
                 """
               ],
               local_address: [
@@ -52,13 +50,16 @@ defmodule Membrane.TCP.Sink do
 
   def_input_pad :input, accepted_format: _any
 
-  # Private API
-
   @impl true
   def handle_init(_context, opts) do
     {local_socket, server_socket} = Socket.create_socket_pair(Map.from_struct(opts))
 
-    {[], %{local_socket: local_socket, server_socket: server_socket}}
+    {[],
+     %{
+       connection_side: opts.connection_side,
+       local_socket: local_socket,
+       server_socket: server_socket
+     }}
   end
 
   @impl true
@@ -70,7 +71,7 @@ defmodule Membrane.TCP.Sink do
   def handle_buffer(:input, %Buffer{payload: payload}, _context, state) do
     %{local_socket: local_socket} = state
 
-    case mockable(Socket).send(local_socket, payload) do
+    case Socket.send(local_socket, payload) do
       :ok -> {[], state}
       {:error, cause} -> raise "Error sending TCP packet, reason: #{inspect(cause)}"
     end

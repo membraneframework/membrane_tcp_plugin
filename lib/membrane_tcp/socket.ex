@@ -13,12 +13,12 @@ defmodule Membrane.TCP.Socket do
         }
 
   @type socket_pair_config :: %{
-    connection_side: :server | :client,
-    local_address: :inet.address(),
-    local_port_no: :inet.port_number(),
-    server_address: :inet.address() | nil,
-    server_port_no: :inet.port_number() | nil
-  }
+          connection_side: :server | :client,
+          local_address: :inet.address(),
+          local_port_no: :inet.port_number(),
+          server_address: :inet.address() | nil,
+          server_port_no: :inet.port_number() | nil
+        }
 
   @spec create_socket_pair(socket_pair_config(), keyword(), keyword()) ::
           {local_socket :: t(), server_socket :: t() | nil}
@@ -47,7 +47,8 @@ defmodule Membrane.TCP.Socket do
 
   @spec listen(socket :: t()) :: {:ok, listen_socket :: t()} | {:error, :inet.posix()}
   def listen(%__MODULE__{port_no: port_no, ip_address: ip, sock_opts: sock_opts} = socket) do
-    listen_result = :gen_tcp.listen(port_no, [:binary, ip: ip, active: true] ++ sock_opts)
+    listen_result =
+      :gen_tcp.listen(port_no, [:binary, ip: ip, active: true, reuseaddr: true] ++ sock_opts)
 
     with {:ok, listen_socket_handle} <- listen_result,
          # Port may change if 0 is used, ip - when either `:any` or `:loopback` is passed
@@ -70,6 +71,7 @@ defmodule Membrane.TCP.Socket do
     accept_result = :gen_tcp.accept(socket_handle)
 
     with {:ok, connected_socket_handle} <- accept_result do
+      :gen_tcp.close(socket_handle)
       updated_socket = %__MODULE__{
         socket
         | socket_handle: connected_socket_handle,
@@ -90,7 +92,7 @@ defmodule Membrane.TCP.Socket do
       :gen_tcp.connect(
         target_ip,
         target_port_no,
-        [:binary, ip: local_ip, port: local_port_no, active: true] ++ sock_opts
+        [:binary, ip: local_ip, port: local_port_no, active: true, reuseaddr: true] ++ sock_opts
       )
 
     with {:ok, socket_handle} <- connect_result,
@@ -110,8 +112,8 @@ defmodule Membrane.TCP.Socket do
 
   @spec close(socket :: t()) :: t()
   def close(%__MODULE__{socket_handle: handle} = socket) when is_port(handle) do
-    :gen_tcp.close(handle)
-    %__MODULE__{socket | socket_handle: nil}
+    :ok = :gen_tcp.close(handle)
+    %__MODULE__{socket | socket_handle: nil, mode: nil}
   end
 
   @spec send(local_socket :: t(), payload :: Membrane.Payload.t()) ::

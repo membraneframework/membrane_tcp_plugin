@@ -4,11 +4,10 @@ defmodule Membrane.TCP.IntegrationTest do
   import Membrane.Testing.Assertions
   import Membrane.ChildrenSpec
 
-  alias Membrane.{Buffer, Testing}
-  alias Membrane.Testing.Pipeline
   alias Membrane.TCP
+  alias Membrane.Testing
+  alias Membrane.Testing.Pipeline
 
-  @target_port 5000
   @server_port 6789
   @localhostv4 {127, 0, 0, 1}
 
@@ -58,7 +57,7 @@ defmodule Membrane.TCP.IntegrationTest do
             payload: payload
           }
         )
-        IO.inspect(payload)
+
         if String.ends_with?(payload, "(#{@payload_frames})") do
           {:halt, acc <> payload}
         else

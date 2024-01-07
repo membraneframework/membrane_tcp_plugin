@@ -2,13 +2,14 @@ defmodule Membrane.TCP.Socket do
   @moduledoc false
 
   @enforce_keys [:port_no, :ip_address]
-  defstruct [:port_no, :ip_address, :socket_handle, :mode, sock_opts: []]
+  defstruct [:port_no, :ip_address, :socket_handle, :state, :connection_side, sock_opts: []]
 
   @type t :: %__MODULE__{
           port_no: :inet.port_number(),
           ip_address: :inet.socket_address(),
           socket_handle: :gen_tcp.socket() | nil,
-          mode: :listening | :connected | nil,
+          state: :listening | :connected | nil,
+          connection_side: :server | :client | nil,
           sock_opts: [:gen_tcp.option()]
         }
 
@@ -17,29 +18,45 @@ defmodule Membrane.TCP.Socket do
           local_address: :inet.address(),
           local_port_no: :inet.port_number(),
           server_address: :inet.address() | nil,
-          server_port_no: :inet.port_number() | nil
+          server_port_no: :inet.port_number() | nil,
+          local_socket: t() | nil
         }
 
-  @spec create_socket_pair(socket_pair_config(), keyword(), keyword()) ::
+  @spec create_socket_pair(socket_pair_config(), keyword()) ::
           {local_socket :: t(), server_socket :: t() | nil}
-  def create_socket_pair(sockets_config, local_socket_options \\ [], server_socket_options \\ []) do
-    local_socket = %__MODULE__{
-      ip_address: sockets_config.local_address,
-      port_no: sockets_config.local_port_no,
-      sock_opts: local_socket_options
-    }
+  def create_socket_pair(
+        %{connection_side: connection_side} = sockets_config,
+        local_socket_options \\ []
+      ) do
+    local_socket =
+      case sockets_config.local_socket do
+        nil ->
+          %__MODULE__{
+            ip_address: sockets_config.local_address,
+            port_no: sockets_config.local_port_no,
+            sock_opts: local_socket_options,
+            connection_side: connection_side
+          }
+
+        %__MODULE__{connection_side: ^connection_side, state: :connected} ->
+          sockets_config.local_socket
+
+        _not_matching_connection_side_socket ->
+          raise "Connection side of provided socket not matching options"
+      end
 
     server_socket =
       case sockets_config do
         %{connection_side: :server} ->
           nil
 
+        %{connection_side: :client, local_socket: %__MODULE__{socket_handle: handle}} ->
+          {:ok, {server_address, server_port}} = :inet.peername(handle)
+
+          %__MODULE__{ip_address: server_address, port_no: server_port, connection_side: :server}
+
         %{connection_side: :client, server_address: address, server_port_no: port_no} ->
-          %__MODULE__{
-            ip_address: address,
-            port_no: port_no,
-            sock_opts: server_socket_options
-          }
+          %__MODULE__{ip_address: address, port_no: port_no, connection_side: :server}
       end
 
     {local_socket, server_socket}
@@ -48,7 +65,7 @@ defmodule Membrane.TCP.Socket do
   @spec listen(socket :: t()) :: {:ok, listen_socket :: t()} | {:error, :inet.posix()}
   def listen(%__MODULE__{port_no: port_no, ip_address: ip, sock_opts: sock_opts} = socket) do
     listen_result =
-      :gen_tcp.listen(port_no, [:binary, ip: ip, active: true, reuseaddr: true] ++ sock_opts)
+      :gen_tcp.listen(port_no, [:binary, ip: ip, active: false, reuseaddr: true] ++ sock_opts)
 
     with {:ok, listen_socket_handle} <- listen_result,
          # Port may change if 0 is used, ip - when either `:any` or `:loopback` is passed
@@ -58,7 +75,7 @@ defmodule Membrane.TCP.Socket do
         | socket_handle: listen_socket_handle,
           port_no: real_port_no,
           ip_address: real_ip_addr,
-          mode: :listening
+          state: :listening
       }
 
       {:ok, updated_socket}
@@ -67,15 +84,16 @@ defmodule Membrane.TCP.Socket do
 
   @spec accept(listening_socket :: t()) ::
           {:ok, connected_socket :: t()} | {:error, :inet.posix()}
-  def accept(%__MODULE__{socket_handle: socket_handle, mode: :listening} = socket) do
+  def accept(%__MODULE__{socket_handle: socket_handle, state: :listening} = socket) do
     accept_result = :gen_tcp.accept(socket_handle)
 
     with {:ok, connected_socket_handle} <- accept_result do
       :gen_tcp.close(socket_handle)
+
       updated_socket = %__MODULE__{
         socket
         | socket_handle: connected_socket_handle,
-          mode: :connected
+          state: :connected
       }
 
       {:ok, updated_socket}
@@ -92,7 +110,7 @@ defmodule Membrane.TCP.Socket do
       :gen_tcp.connect(
         target_ip,
         target_port_no,
-        [:binary, ip: local_ip, port: local_port_no, active: true, reuseaddr: true] ++ sock_opts
+        [:binary, ip: local_ip, port: local_port_no, active: false, reuseaddr: true] ++ sock_opts
       )
 
     with {:ok, socket_handle} <- connect_result,
@@ -103,7 +121,7 @@ defmodule Membrane.TCP.Socket do
         | socket_handle: socket_handle,
           port_no: real_port_no,
           ip_address: real_ip_addr,
-          mode: :connected
+          state: :connected
       }
 
       {:ok, updated_socket}
@@ -113,12 +131,18 @@ defmodule Membrane.TCP.Socket do
   @spec close(socket :: t()) :: t()
   def close(%__MODULE__{socket_handle: handle} = socket) when is_port(handle) do
     :ok = :gen_tcp.close(handle)
-    %__MODULE__{socket | socket_handle: nil, mode: nil}
+    %__MODULE__{socket | socket_handle: nil, state: nil}
   end
 
   @spec send(local_socket :: t(), payload :: Membrane.Payload.t()) ::
           :ok | {:error, :closed | :inet.posix()}
   def send(%__MODULE__{socket_handle: socket_handle}, payload) when is_port(socket_handle) do
     :gen_tcp.send(socket_handle, payload)
+  end
+
+  @spec recv(socket :: t()) ::
+          {:ok, Membrane.Payload.t()} | {:error, :closed | :timeout | :inet.posix()}
+  def recv(%__MODULE__{socket_handle: socket_handle}) do
+    :gen_tcp.recv(socket_handle, 0, 0)
   end
 end

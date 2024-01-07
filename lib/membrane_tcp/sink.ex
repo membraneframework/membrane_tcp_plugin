@@ -31,6 +31,14 @@ defmodule Membrane.TCP.Sink do
                 (nil in case of `connection_side: :server`)
                 """
               ],
+              local_address: [
+                spec: :inet.socket_address(),
+                default: :any,
+                description: """
+                An IP Address from which the socket will connect or will listen on.
+                It allows to choose which network interface to use if there's more than one.
+                """
+              ],
               local_port_no: [
                 spec: :inet.port_number(),
                 default: 0,
@@ -39,12 +47,12 @@ defmodule Membrane.TCP.Sink do
                 starting a listening socket. If not specified any free port is chosen.
                 """
               ],
-              local_address: [
-                spec: :inet.socket_address(),
-                default: :any,
+              local_socket: [
+                spec: Socket.t(),
+                default: nil,
                 description: """
-                An IP Address from which the socket will connect or will listen on.
-                It allows to choose which network interface to use if there's more than one.
+                Already connected TCP socket with connection side mathing the one passed
+                as an option, has to be connected.
                 """
               ]
 

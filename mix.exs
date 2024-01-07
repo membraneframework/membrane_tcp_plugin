@@ -52,7 +52,8 @@ defmodule Membrane.TCP.MixProject do
 
   defp deps do
     [
-      {:membrane_core, "~> 1.0"},
+      {:membrane_core, path: "../membrane_core", override: true},
+      # {:membrane_core, "~> 1.0"},
       {:mockery, "~> 2.3.0", runtime: false},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:dialyxir, "~> 1.1", only: :dev, runtime: false},

@@ -20,7 +20,8 @@ defmodule Membrane.TCP.Source do
                 default: nil,
                 description: """
                 An IP Address of the server the packets will be sent from.
-                (nil in case of `connection_side: :server`)
+                (nil in case of `connection_side: :server` or when providing
+                already connected socket)
                 """
               ],
               server_port_no: [
@@ -28,15 +29,8 @@ defmodule Membrane.TCP.Source do
                 default: nil,
                 description: """
                 A TCP port number of the server the packets will be sent from.
-                (nil in case of `connection_side: :server`)
-                """
-              ],
-              local_port_no: [
-                spec: :inet.port_number(),
-                default: 0,
-                description: """
-                A TCP port number used when connecting to a listening socket or
-                starting a listening socket. If not specified any free port is chosen.
+                (nil in case of `connection_side: :server` or when providing
+                already connected socket)
                 """
               ],
               local_address: [
@@ -47,11 +41,20 @@ defmodule Membrane.TCP.Source do
                 It allows to choose which network interface to use if there's more than one.
                 """
               ],
-              socket: [
-                spec: :gen_tcp.socket(),
+              local_port_no: [
+                spec: :inet.port_number(),
+                default: 0,
+                description: """
+                A TCP port number used when connecting to a listening socket or
+                starting a listening socket. If not specified any free port is chosen.
+                """
+              ],
+              local_socket: [
+                spec: Socket.t(),
                 default: nil,
                 description: """
-                Already connected TCP socket, has to be in active mode.
+                Already connected TCP socket with connection side mathing the one passed
+                as an option, has to be connected.
                 """
               ],
               recv_buffer_size: [
@@ -62,7 +65,7 @@ defmodule Membrane.TCP.Source do
                 """
               ]
 
-  def_output_pad :output, accepted_format: %RemoteStream{type: :packetized}, flow_control: :push
+  def_output_pad :output, accepted_format: %RemoteStream{type: :packetized}, flow_control: :manual
 
   @impl true
   def handle_init(_context, opts) do
@@ -82,29 +85,57 @@ defmodule Membrane.TCP.Source do
     {[stream_format: {:output, %RemoteStream{type: :packetized}}], state}
   end
 
+  # @impl true
+  # def handle_info({:tcp, socket_handle, payload}, %{playback: :playing}, state) do
+  #   {:ok, {peer_address, peer_port_no}} = :inet.peername(socket_handle)
+
+  #   metadata =
+  #     Map.new()
+  #     |> Map.put(:tcp_source_address, peer_address)
+  #     |> Map.put(:tcp_source_port, peer_port_no)
+  #     |> Map.put(:arrival_ts, Membrane.Time.vm_time())
+
+  #   actions = [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}]
+
+  #   {actions, state}
+  # end
+
+  # @impl true
+  # def handle_info({:tcp, _socket_handle, _address, _port_no, _payload}, _ctx, state) do
+  #   {[], state}
+  # end
+
+  # def handle_info({:tcp_closed, _local_socket_handle}, _ctx, state) do
+  #   Socket.close(state.local_socket)
+  #   {[], state}
+  # end
+
   @impl true
-  def handle_info({:tcp, socket_handle, payload}, %{playback: :playing}, state) do
-    {:ok, {peer_address, peer_port_no}} = :inet.peername(socket_handle)
+  def handle_demand(_pad, _size, _unit, _ctx, state) do
+    case Socket.recv(state.local_socket) do
+      {:ok, payload} ->
+        {:ok, {peer_address, peer_port_no}} = :inet.peername(state.local_socket.socket_handle)
 
-    metadata =
-      Map.new()
-      |> Map.put(:tcp_source_address, peer_address)
-      |> Map.put(:tcp_source_port, peer_port_no)
-      |> Map.put(:arrival_ts, Membrane.Time.vm_time())
+        metadata =
+          Map.new()
+          |> Map.put(:tcp_source_address, peer_address)
+          |> Map.put(:tcp_source_port, peer_port_no)
+          |> Map.put(:arrival_ts, Membrane.Time.vm_time())
 
-    actions = [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}]
+        {
+          [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}, redemand: :output],
+          state
+        }
 
-    {actions, state}
-  end
+      {:error, :timeout} ->
+        {[redemand: :output], state}
 
-  @impl true
-  def handle_info({:tcp, _socket_handle, _address, _port_no, _payload}, _ctx, state) do
-    {[], state}
-  end
+      {:error, :closed} ->
+        {[end_of_stream: :output], state}
 
-  def handle_info({:tcp_closed, _local_socket_handle}, _ctx, state) do
-    Socket.close(state.local_socket)
-    {[], state}
+      {:error, reason} ->
+        raise "TCP Socket receiving error, reason: #{inspect(reason)}"
+    end
   end
 
   @impl true

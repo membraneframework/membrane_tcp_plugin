@@ -11,7 +11,7 @@ defmodule Membrane.TCP.Source do
                 spec: :client | :server,
                 default: :client,
                 description: """
-                Determines whether this element will behave like a server or a client when
+                Determines whether this element will operate like a server or a client when
                 establishing TCP connection.
                 """
               ],
@@ -65,7 +65,7 @@ defmodule Membrane.TCP.Source do
                 """
               ]
 
-  def_output_pad :output, accepted_format: %RemoteStream{type: :packetized}, flow_control: :manual
+  def_output_pad :output, accepted_format: %RemoteStream{type: :bytestream}, flow_control: :manual
 
   @impl true
   def handle_init(_context, opts) do
@@ -82,33 +82,8 @@ defmodule Membrane.TCP.Source do
 
   @impl true
   def handle_playing(_ctx, state) do
-    {[stream_format: {:output, %RemoteStream{type: :packetized}}], state}
+    {[stream_format: {:output, %RemoteStream{type: :bytestream}}], state}
   end
-
-  # @impl true
-  # def handle_info({:tcp, socket_handle, payload}, %{playback: :playing}, state) do
-  #   {:ok, {peer_address, peer_port_no}} = :inet.peername(socket_handle)
-
-  #   metadata =
-  #     Map.new()
-  #     |> Map.put(:tcp_source_address, peer_address)
-  #     |> Map.put(:tcp_source_port, peer_port_no)
-  #     |> Map.put(:arrival_ts, Membrane.Time.vm_time())
-
-  #   actions = [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}]
-
-  #   {actions, state}
-  # end
-
-  # @impl true
-  # def handle_info({:tcp, _socket_handle, _address, _port_no, _payload}, _ctx, state) do
-  #   {[], state}
-  # end
-
-  # def handle_info({:tcp_closed, _local_socket_handle}, _ctx, state) do
-  #   Socket.close(state.local_socket)
-  #   {[], state}
-  # end
 
   @impl true
   def handle_demand(_pad, _size, _unit, _ctx, state) do

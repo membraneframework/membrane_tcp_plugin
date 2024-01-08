@@ -14,7 +14,7 @@ defmodule Membrane.TCP.SourcePipelineTest do
   @payload_frames 100
 
   def run_pipeline(pipeline, server_socket) do
-    data = 1..@payload_frames |> Enum.map(&"(#{&1})")
+    data = Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
 
     Enum.map(data, fn elem ->
       Socket.send(server_socket, elem)
@@ -35,7 +35,7 @@ defmodule Membrane.TCP.SourcePipelineTest do
           @timeout
         )
 
-        if String.ends_with?(payload, "(#{@payload_frames})") do
+        if String.ends_with?(payload, ".") do
           {:halt, acc <> payload}
         else
           {:cont, acc <> payload}
@@ -77,7 +77,7 @@ defmodule Membrane.TCP.SourcePipelineTest do
       run_pipeline(pipeline, server_socket)
     end
 
-    test "created with already connected socket" do
+    test "created with already connected client socket" do
       server_socket = %Socket{connection_side: :server, ip_address: @local_address, port_no: @server_port_no}
       client_socket = %Socket{connection_side: :client, ip_address: @local_address, port_no: 0}
 

@@ -18,25 +18,23 @@ defmodule Membrane.TCP.IntegrationTest do
 
     sender =
       Pipeline.start_link_supervised!(
-        spec: [
+        spec:
           child(:source, %Testing.Source{output: data})
           |> child(:sink, %TCP.Sink{
             local_address: @localhostv4,
             local_port_no: @server_port
           })
-        ]
       )
 
     receiver =
       Pipeline.start_link_supervised!(
-        spec: [
+        spec:
           child(:source, %TCP.Source{
             server_address: @localhostv4,
             server_port_no: @server_port,
             local_address: @localhostv4
           })
           |> child(:sink, %Testing.Sink{})
-        ]
       )
 
     assert_pipeline_notified(sender, :sink, {:connection_info, @localhostv4, @server_port})
@@ -44,26 +42,7 @@ defmodule Membrane.TCP.IntegrationTest do
 
     assert_end_of_stream(sender, :sink)
 
-    received_data =
-      Enum.reduce_while(data, "", fn _elem, acc ->
-        assert_sink_buffer(
-          receiver,
-          :sink,
-          %Membrane.Buffer{
-            metadata: %{
-              tcp_source_address: @localhostv4,
-              tcp_source_port: @server_port
-            },
-            payload: payload
-          }
-        )
-
-        if String.ends_with?(payload, ".") do
-          {:halt, acc <> payload}
-        else
-          {:cont, acc <> payload}
-        end
-      end)
+    received_data = TCP.TestingSinkReceiver.receive_data(receiver)
 
     assert received_data == Enum.join(data)
     Pipeline.terminate(sender)

@@ -1,47 +1,24 @@
 defmodule Membrane.TCP.SourcePipelineTest do
   use ExUnit.Case, async: false
 
-  import Membrane.Testing.Assertions
   import Membrane.ChildrenSpec
 
-  alias Membrane.TCP.{Socket, Source}
+  alias Membrane.TCP.{Socket, Source, TestingSinkReceiver}
   alias Membrane.Testing.{Pipeline, Sink}
 
   @local_address {127, 0, 0, 1}
   @server_port_no 5052
-  @timeout 2_000
 
   @payload_frames 100
 
-  def run_pipeline(pipeline, server_socket) do
+  defp run_pipeline(pipeline, server_socket) do
     data = Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
 
-    Enum.map(data, fn elem ->
+    Enum.each(data, fn elem ->
       Socket.send(server_socket, elem)
     end)
 
-    received_data =
-      Enum.reduce_while(data, "", fn _elem, acc ->
-        assert_sink_buffer(
-          pipeline,
-          :sink,
-          %Membrane.Buffer{
-            metadata: %{
-              tcp_source_address: @local_address,
-              tcp_source_port: @server_port_no
-            },
-            payload: payload
-          },
-          @timeout
-        )
-
-        if String.ends_with?(payload, ".") do
-          {:halt, acc <> payload}
-        else
-          {:cont, acc <> payload}
-        end
-      end)
-
+    received_data = TestingSinkReceiver.receive_data(pipeline)
     assert received_data == Enum.join(data)
     Pipeline.terminate(pipeline)
     Socket.close(server_socket)
@@ -59,14 +36,13 @@ defmodule Membrane.TCP.SourcePipelineTest do
 
       assert pipeline =
                Pipeline.start_link_supervised!(
-                 spec: [
+                 spec:
                    child(:tcp_source, %Source{
                      local_address: @local_address,
                      server_address: @local_address,
                      server_port_no: @server_port_no
                    })
-                   |> child(:sink, Sink)
-                 ],
+                   |> child(:sink, Sink),
                  test_process: self()
                )
 
@@ -78,7 +54,12 @@ defmodule Membrane.TCP.SourcePipelineTest do
     end
 
     test "created with already connected client socket" do
-      server_socket = %Socket{connection_side: :server, ip_address: @local_address, port_no: @server_port_no}
+      server_socket = %Socket{
+        connection_side: :server,
+        ip_address: @local_address,
+        port_no: @server_port_no
+      }
+
       client_socket = %Socket{connection_side: :client, ip_address: @local_address, port_no: 0}
 
       assert {:ok, listening_server_socket} = Socket.listen(server_socket)
@@ -89,12 +70,11 @@ defmodule Membrane.TCP.SourcePipelineTest do
 
       assert pipeline =
                Pipeline.start_link_supervised!(
-                 spec: [
+                 spec:
                    child(:tcp_source, %Source{
                      local_socket: client_socket
                    })
-                   |> child(:sink, Sink)
-                 ],
+                   |> child(:sink, Sink),
                  test_process: self()
                )
 

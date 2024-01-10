@@ -14,10 +14,6 @@ Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 	{:membrane_tcp_plugin, "~> 0.1.0"}
 ```
 
-## Usage example
-
-TODO
-
 ## Copyright and License
 
 Copyright 2023, [Software Mansion](https://swmansion.com/?utm_source=git&utm_medium=readme&utm_campaign=membrane)

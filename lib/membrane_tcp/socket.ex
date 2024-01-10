@@ -14,22 +14,20 @@ defmodule Membrane.TCP.Socket do
         }
 
   @type socket_pair_config :: %{
-          connection_side: :server | :client,
-          local_address: :inet.address(),
+          connection_side: :server | :client | {:client, :inet.address(), :inet.port_number()},
+          local_address: :inet.socket_address(),
           local_port_no: :inet.port_number(),
-          server_address: :inet.address() | nil,
-          server_port_no: :inet.port_number() | nil,
           local_socket: t() | nil
         }
 
   @spec create_socket_pair(socket_pair_config(), keyword()) ::
           {local_socket :: t(), server_socket :: t() | nil}
   def create_socket_pair(
-        %{connection_side: connection_side} = sockets_config,
+        %{connection_side: connection_side, local_socket: local_socket} = sockets_config,
         local_socket_options \\ []
       ) do
     local_socket =
-      case sockets_config.local_socket do
+      case local_socket do
         nil ->
           %__MODULE__{
             ip_address: sockets_config.local_address,
@@ -39,23 +37,23 @@ defmodule Membrane.TCP.Socket do
           }
 
         %__MODULE__{connection_side: ^connection_side, state: :connected} ->
-          sockets_config.local_socket
+          local_socket
 
         _not_matching_connection_side_socket ->
           raise "Connection side of provided socket not matching options"
       end
 
     server_socket =
-      case sockets_config do
-        %{connection_side: :server} ->
+      case connection_side do
+        :server ->
           nil
 
-        %{connection_side: :client, local_socket: %__MODULE__{socket_handle: handle}} ->
-          {:ok, {server_address, server_port}} = :inet.peername(handle)
+        :client ->
+          {:ok, {server_address, server_port}} = :inet.peername(local_socket.socket_handle)
 
           %__MODULE__{ip_address: server_address, port_no: server_port, connection_side: :server}
 
-        %{connection_side: :client, server_address: address, server_port_no: port_no} ->
+        {:client, address, port_no} ->
           %__MODULE__{ip_address: address, port_no: port_no, connection_side: :server}
       end
 

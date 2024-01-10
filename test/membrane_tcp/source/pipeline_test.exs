@@ -39,8 +39,7 @@ defmodule Membrane.TCP.SourcePipelineTest do
                  spec:
                    child(:tcp_source, %Source{
                      local_address: @local_address,
-                     server_address: @local_address,
-                     server_port_no: @server_port_no
+                     connection_side: {:client, @local_address, @server_port_no}
                    })
                    |> child(:sink, Sink),
                  test_process: self()
@@ -72,6 +71,7 @@ defmodule Membrane.TCP.SourcePipelineTest do
                Pipeline.start_link_supervised!(
                  spec:
                    child(:tcp_source, %Source{
+                     connection_side: :client,
                      local_socket: client_socket
                    })
                    |> child(:sink, Sink),

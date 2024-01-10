@@ -8,29 +8,15 @@ defmodule Membrane.TCP.Source do
   alias Membrane.TCP.{CommonSocketBehaviour, Socket}
 
   def_options connection_side: [
-                spec: :client | :server,
-                default: :client,
+                spec:
+                  :server
+                  | :client
+                  | {:client, server_address :: :inet.ip_address(),
+                     server_port_no :: :inet.port_number()},
                 description: """
                 Determines whether this element will operate like a server or a client when
-                establishing TCP connection.
-                """
-              ],
-              server_address: [
-                spec: :inet.ip_address() | nil,
-                default: nil,
-                description: """
-                An IP Address of the server the packets will be sent from.
-                (nil in case of `connection_side: :server` or when providing
-                already connected socket)
-                """
-              ],
-              server_port_no: [
-                spec: :inet.port_number() | nil,
-                default: nil,
-                description: """
-                A TCP port number of the server the packets will be sent from.
-                (nil in case of `connection_side: :server` or when providing
-                already connected socket)
+                establishing TCP connection. In case of client-side connection server address
+                and port number are required, unless `local_socket` is provided.
                 """
               ],
               local_address: [
@@ -72,9 +58,16 @@ defmodule Membrane.TCP.Source do
     {local_socket, server_socket} =
       Socket.create_socket_pair(Map.from_struct(opts), recbuf: opts.recv_buffer_size)
 
+    connection_side =
+      case opts.connection_side do
+        :server -> :server
+        :client -> :client
+        {:client, _server_address, _server_port_no} -> :client
+      end
+
     {[],
      %{
-       connection_side: opts.connection_side,
+       connection_side: connection_side,
        local_socket: local_socket,
        server_socket: server_socket
      }}

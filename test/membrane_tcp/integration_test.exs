@@ -9,7 +9,7 @@ defmodule Membrane.TCP.IntegrationTest do
   alias Membrane.Testing.Pipeline
 
   @server_port 6789
-  @localhostv4 {127, 0, 0, 1}
+  @local_address {127, 0, 0, 1}
 
   @payload_frames 100
 
@@ -21,7 +21,7 @@ defmodule Membrane.TCP.IntegrationTest do
         spec:
           child(:source, %Testing.Source{output: data})
           |> child(:sink, %TCP.Sink{
-            local_address: @localhostv4,
+            local_address: @local_address,
             local_port_no: @server_port
           })
       )
@@ -30,15 +30,14 @@ defmodule Membrane.TCP.IntegrationTest do
       Pipeline.start_link_supervised!(
         spec:
           child(:source, %TCP.Source{
-            server_address: @localhostv4,
-            server_port_no: @server_port,
-            local_address: @localhostv4
+            connection_side: {:client, @local_address, @server_port},
+            local_address: @local_address
           })
           |> child(:sink, %Testing.Sink{})
       )
 
-    assert_pipeline_notified(sender, :sink, {:connection_info, @localhostv4, @server_port})
-    assert_pipeline_notified(receiver, :source, {:connection_info, @localhostv4, _ephemeral_port})
+    assert_pipeline_notified(sender, :sink, {:connection_info, @local_address, @server_port})
+    assert_pipeline_notified(receiver, :source, {:connection_info, @local_address, _ephemeral_port})
 
     assert_end_of_stream(sender, :sink)
 

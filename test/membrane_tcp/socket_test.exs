@@ -10,7 +10,7 @@ defmodule Membrane.TCP.SocketTest do
       assert new_sock.ip_address == sock.ip_address
       assert new_sock.port_no == sock.port_no
 
-      assert new_sock.socket_handle |> :inet.sockname() ==
+      assert :inet.sockname(new_sock.socket_handle) ==
                {:ok, {new_sock.ip_address, new_sock.port_no}}
     end
 
@@ -20,7 +20,7 @@ defmodule Membrane.TCP.SocketTest do
       assert new_sock.ip_address == {0, 0, 0, 0, 0, 0, 0, 0}
       assert new_sock.port_no != 0
 
-      assert new_sock.socket_handle |> :inet.sockname() ==
+      assert :inet.sockname(new_sock.socket_handle) ==
                {:ok, {new_sock.ip_address, new_sock.port_no}}
     end
 
@@ -30,7 +30,7 @@ defmodule Membrane.TCP.SocketTest do
       assert new_sock.ip_address == {127, 0, 0, 1}
       assert new_sock.port_no != 0
 
-      assert new_sock.socket_handle |> :inet.sockname() ==
+      assert :inet.sockname(new_sock.socket_handle) ==
                {:ok, {new_sock.ip_address, new_sock.port_no}}
     end
   end

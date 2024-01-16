@@ -1,7 +1,7 @@
 defmodule Membrane.TCP.Socket do
   @moduledoc false
 
-  @enforce_keys [:port_no, :ip_address]
+  @enforce_keys [:connection_side, :port_no, :ip_address]
   defstruct [:port_no, :ip_address, :socket_handle, :state, :connection_side, sock_opts: []]
 
   @type t :: %__MODULE__{

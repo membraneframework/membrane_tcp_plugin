@@ -1,27 +1,22 @@
-defmodule Membrane.Template.Mixfile do
+defmodule Membrane.TCP.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @github_url "https://github.com/membraneframework/membrane_template_plugin"
+  @github_url "https://github.com/membraneframework/membrane_tcp_plugin"
 
   def project do
     [
-      app: :membrane_template_plugin,
+      app: :membrane_tcp_plugin,
       version: @version,
-      elixir: "~> 1.13",
+      elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
-      start_permanent: Mix.env() == :prod,
-      deps: deps(),
-      dialyzer: dialyzer(),
-
-      # hex
-      description: "Template Plugin for Membrane Framework",
+      description: "Membrane TCP plugin",
       package: package(),
-
-      # docs
-      name: "Membrane Template plugin",
+      name: "Membrane TCP plugin",
       source_url: @github_url,
-      docs: docs()
+      docs: docs(),
+      deps: deps(),
+      dialyzer: dialyzer()
     ]
   end
 
@@ -34,12 +29,34 @@ defmodule Membrane.Template.Mixfile do
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_env), do: ["lib"]
 
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md", LICENSE: [title: "License"]],
+      formatters: ["html"],
+      source_ref: "v#{@version}",
+      nest_modules_by_prefix: [Membrane.TCP]
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["Membrane Team"],
+      licenses: ["Apache-2.0"],
+      links: %{
+        "GitHub" => @github_url,
+        "Membrane Framework Homepage" => "https://membrane.stream"
+      }
+    ]
+  end
+
   defp deps do
     [
       {:membrane_core, "~> 1.0"},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
-      {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
-      {:credo, ">= 0.0.0", only: :dev, runtime: false}
+      {:mockery, "~> 2.3.0", runtime: false},
+      {:ex_doc, "~> 0.28", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.1", only: :dev, runtime: false},
+      {:credo, "~> 1.5", only: :dev, runtime: false}
     ]
   end
 
@@ -54,26 +71,5 @@ defmodule Membrane.Template.Mixfile do
     else
       opts
     end
-  end
-
-  defp package do
-    [
-      maintainers: ["Membrane Team"],
-      licenses: ["Apache-2.0"],
-      links: %{
-        "GitHub" => @github_url,
-        "Membrane Framework Homepage" => "https://membrane.stream"
-      }
-    ]
-  end
-
-  defp docs do
-    [
-      main: "readme",
-      extras: ["README.md", "LICENSE"],
-      formatters: ["html"],
-      source_ref: "v#{@version}",
-      nest_modules_by_prefix: [Membrane.Template]
-    ]
   end
 end

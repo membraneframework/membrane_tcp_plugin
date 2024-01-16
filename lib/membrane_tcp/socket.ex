@@ -1,7 +1,9 @@
 defmodule Membrane.TCP.Socket do
-  @moduledoc false
+  @moduledoc """
+  TCP Socket behavior
+  """
 
-  @enforce_keys [:port_no, :ip_address]
+  @enforce_keys [:connection_side, :port_no, :ip_address]
   defstruct [:port_no, :ip_address, :socket_handle, :state, :connection_side, sock_opts: []]
 
   @type t :: %__MODULE__{
@@ -14,7 +16,7 @@ defmodule Membrane.TCP.Socket do
         }
 
   @type socket_pair_config :: %{
-          connection_side: :server | :client | {:client, :inet.address(), :inet.port_number()},
+          connection_side: :server | :client | {:client, :inet.ip_address(), :inet.port_number()},
           local_address: :inet.socket_address(),
           local_port_no: :inet.port_number(),
           local_socket: t() | nil

@@ -37,7 +37,12 @@ defmodule Membrane.TCP.IntegrationTest do
       )
 
     assert_pipeline_notified(sender, :sink, {:connection_info, @local_address, @server_port})
-    assert_pipeline_notified(receiver, :source, {:connection_info, @local_address, _ephemeral_port})
+
+    assert_pipeline_notified(
+      receiver,
+      :source,
+      {:connection_info, @local_address, _ephemeral_port}
+    )
 
     assert_end_of_stream(sender, :sink)
 

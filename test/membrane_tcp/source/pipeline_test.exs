@@ -28,6 +28,7 @@ defmodule Membrane.TCP.SourcePipelineTest do
     test "created without socket" do
       {:ok, listening_server_socket} =
         %Socket{
+          connection_side: :server,
           ip_address: @local_address,
           port_no: @server_port_no,
           sock_opts: [reuseaddr: true]
@@ -53,13 +54,11 @@ defmodule Membrane.TCP.SourcePipelineTest do
     end
 
     test "created with already connected client socket" do
-      server_socket = %Socket{
-        connection_side: :server,
-        ip_address: @local_address,
-        port_no: @server_port_no
-      }
+      server_socket =
+        %Socket{connection_side: :server, ip_address: @local_address, port_no: @server_port_no}
 
-      client_socket = %Socket{connection_side: :client, ip_address: @local_address, port_no: 0}
+      client_socket =
+        %Socket{connection_side: :client, ip_address: @local_address, port_no: 0}
 
       assert {:ok, listening_server_socket} = Socket.listen(server_socket)
       assert {:ok, client_socket} = Socket.connect(client_socket, server_socket)

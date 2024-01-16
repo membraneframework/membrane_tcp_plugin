@@ -5,7 +5,7 @@ defmodule Membrane.TCP.SocketTest do
 
   describe "listen" do
     test "with explicit port and address" do
-      sock = %Socket{port_no: 50_666, ip_address: {127, 0, 0, 1}}
+      sock = %Socket{connection_side: :client, port_no: 50_666, ip_address: {127, 0, 0, 1}}
       assert {:ok, new_sock} = Socket.listen(sock)
       assert new_sock.ip_address == sock.ip_address
       assert new_sock.port_no == sock.port_no
@@ -15,7 +15,7 @@ defmodule Membrane.TCP.SocketTest do
     end
 
     test "with port 0 and `:any` IPv6 address" do
-      sock = %Socket{port_no: 0, ip_address: :any, sock_opts: [:inet6]}
+      sock = %Socket{connection_side: :client, port_no: 0, ip_address: :any, sock_opts: [:inet6]}
       assert {:ok, new_sock} = Socket.listen(sock)
       assert new_sock.ip_address == {0, 0, 0, 0, 0, 0, 0, 0}
       assert new_sock.port_no != 0
@@ -25,7 +25,13 @@ defmodule Membrane.TCP.SocketTest do
     end
 
     test "with port 0 and `:loopback` IPv4 address" do
-      sock = %Socket{port_no: 0, ip_address: :loopback, sock_opts: [:inet]}
+      sock = %Socket{
+        connection_side: :client,
+        port_no: 0,
+        ip_address: :loopback,
+        sock_opts: [:inet]
+      }
+
       assert {:ok, new_sock} = Socket.listen(sock)
       assert new_sock.ip_address == {127, 0, 0, 1}
       assert new_sock.port_no != 0
@@ -37,8 +43,13 @@ defmodule Membrane.TCP.SocketTest do
 
   describe "socket pair" do
     test "completes the handshake successfully" do
-      client_socket = %Socket{port_no: 50_667, ip_address: :loopback}
-      server_socket = %Socket{port_no: 50_666, ip_address: {127, 0, 0, 1}}
+      client_socket = %Socket{connection_side: :client, port_no: 50_667, ip_address: :loopback}
+
+      server_socket = %Socket{
+        connection_side: :server,
+        port_no: 50_666,
+        ip_address: {127, 0, 0, 1}
+      }
 
       assert {:ok, listening_server_socket} = Socket.listen(server_socket)
       assert {:ok, client_socket} = Socket.connect(client_socket, server_socket)

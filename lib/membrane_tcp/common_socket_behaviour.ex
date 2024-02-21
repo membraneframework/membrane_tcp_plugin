@@ -10,7 +10,7 @@ defmodule Membrane.TCP.CommonSocketBehaviour do
           Base.callback_return()
   def handle_setup(
         ctx,
-        %{connection_side: :client, local_socket: local_socket, server_socket: server_socket} =
+        %{connection_side: :client, local_socket: local_socket, remote_socket: server_socket} =
           state
       ) do
     local_socket_connection_result =

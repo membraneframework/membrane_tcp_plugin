@@ -23,7 +23,7 @@ defmodule Membrane.TCP.Socket do
         }
 
   @spec create_socket_pair(socket_pair_config(), keyword()) ::
-          {local_socket :: t(), server_socket :: t() | nil}
+          {local_socket :: t(), remote_socket :: t() | nil}
   def create_socket_pair(
         %{connection_side: connection_side, local_socket: local_socket} = sockets_config,
         local_socket_options \\ []
@@ -45,7 +45,7 @@ defmodule Membrane.TCP.Socket do
           raise "Connection side of provided socket not matching options"
       end
 
-    server_socket =
+    remote_socket =
       case connection_side do
         :server ->
           nil
@@ -59,7 +59,7 @@ defmodule Membrane.TCP.Socket do
           %__MODULE__{ip_address: address, port_no: port_no, connection_side: :server}
       end
 
-    {local_socket, server_socket}
+    {local_socket, remote_socket}
   end
 
   @spec listen(socket :: t()) :: {:ok, listen_socket :: t()} | {:error, :inet.posix()}

@@ -36,7 +36,7 @@ defmodule Membrane.TCP.Source do
                 """
               ],
               local_socket: [
-                spec: Socket.t(),
+                spec: Socket.t() | nil,
                 default: nil,
                 description: """
                 Already connected TCP socket with connection side mathing the one passed
@@ -55,7 +55,7 @@ defmodule Membrane.TCP.Source do
 
   @impl true
   def handle_init(_context, opts) do
-    {local_socket, server_socket} =
+    {local_socket, remote_socket} =
       Socket.create_socket_pair(Map.from_struct(opts), recbuf: opts.recv_buffer_size)
 
     connection_side =
@@ -69,7 +69,7 @@ defmodule Membrane.TCP.Source do
      %{
        connection_side: connection_side,
        local_socket: local_socket,
-       server_socket: server_socket
+       remote_socket: remote_socket
      }}
   end
 

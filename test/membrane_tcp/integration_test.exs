@@ -21,6 +21,7 @@ defmodule Membrane.TCP.IntegrationTest do
         spec:
           child(:source, %Testing.Source{output: data})
           |> child(:sink, %TCP.Sink{
+            connection_side: :server,
             local_address: @local_address,
             local_port_no: @server_port
           })

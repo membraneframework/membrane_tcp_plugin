@@ -63,7 +63,7 @@ defmodule Membrane.TCP.Socket do
   end
 
   @spec listen(socket :: t()) :: {:ok, listen_socket :: t()} | {:error, :inet.posix()}
-  def listen(%__MODULE__{port_no: port_no, ip_address: ip, sock_opts: sock_opts} = socket) do
+  def listen(%__MODULE__{port_no: port_no, ip_address: ip, sock_opts: sock_opts} = local_socket) do
     listen_result =
       :gen_tcp.listen(port_no, [:binary, ip: ip, active: false, reuseaddr: true] ++ sock_opts)
 
@@ -71,7 +71,7 @@ defmodule Membrane.TCP.Socket do
          # Port may change if 0 is used, ip - when either `:any` or `:loopback` is passed
          {:ok, {real_ip_addr, real_port_no}} <- :inet.sockname(listen_socket_handle) do
       updated_socket = %__MODULE__{
-        socket
+        local_socket
         | socket_handle: listen_socket_handle,
           port_no: real_port_no,
           ip_address: real_ip_addr,

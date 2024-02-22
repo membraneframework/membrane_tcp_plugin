@@ -9,11 +9,11 @@ defmodule Membrane.TCP.IntegrationTest do
   alias Membrane.Testing.Pipeline
 
   @server_port 6789
-  @local_address {127, 0, 0, 1}
+  @localhost {127, 0, 0, 1}
 
   @payload_frames 100
 
-  test "send from server pipeline and receive on client pipeline" do
+  test "send from server-side pipeline and receive on client-side pipeline" do
     data = Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
 
     sender =
@@ -22,7 +22,7 @@ defmodule Membrane.TCP.IntegrationTest do
           child(:source, %Testing.Source{output: data})
           |> child(:sink, %TCP.Sink{
             connection_side: :server,
-            local_address: @local_address,
+            local_address: @localhost,
             local_port_no: @server_port
           })
       )
@@ -31,19 +31,15 @@ defmodule Membrane.TCP.IntegrationTest do
       Pipeline.start_link_supervised!(
         spec:
           child(:source, %TCP.Source{
-            connection_side: {:client, @local_address, @server_port},
-            local_address: @local_address
+            connection_side: {:client, @localhost, @server_port},
+            local_address: @localhost
           })
           |> child(:sink, %Testing.Sink{})
       )
 
-    assert_pipeline_notified(sender, :sink, {:connection_info, @local_address, @server_port})
+    assert_pipeline_notified(sender, :sink, {:connection_info, @localhost, @server_port})
 
-    assert_pipeline_notified(
-      receiver,
-      :source,
-      {:connection_info, @local_address, _port}
-    )
+    assert_pipeline_notified(receiver, :source, {:connection_info, @localhost, _port})
 
     assert_end_of_stream(sender, :sink)
 
@@ -54,7 +50,7 @@ defmodule Membrane.TCP.IntegrationTest do
     Pipeline.terminate(receiver)
   end
 
-  test "send from client pipeline and receive on server pipeline" do
+  test "send from client-side pipeline and receive on server-side pipeline" do
     data = Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
 
     receiver =
@@ -62,7 +58,7 @@ defmodule Membrane.TCP.IntegrationTest do
         spec:
           child(:source, %TCP.Source{
             connection_side: :server,
-            local_address: @local_address,
+            local_address: @localhost,
             local_port_no: @server_port
           })
           |> child(:sink, %Testing.Sink{})
@@ -73,14 +69,14 @@ defmodule Membrane.TCP.IntegrationTest do
         spec:
           child(:source, %Testing.Source{output: data})
           |> child(:sink, %TCP.Sink{
-            connection_side: {:client, @local_address, @server_port},
-            local_address: @local_address
+            connection_side: {:client, @localhost, @server_port},
+            local_address: @localhost
           })
       )
 
-    assert_pipeline_notified(sender, :sink, {:connection_info, @local_address, _port})
+    assert_pipeline_notified(sender, :sink, {:connection_info, @localhost, _port})
 
-    assert_pipeline_notified(receiver, :source, {:connection_info, @local_address, @server_port})
+    assert_pipeline_notified(receiver, :source, {:connection_info, @localhost, @server_port})
 
     assert_end_of_stream(sender, :sink)
 

@@ -3,7 +3,7 @@ defmodule Membrane.TCP.SinkPipelineTest do
 
   import Membrane.ChildrenSpec
 
-  alias Membrane.TCP.{Socket, Sink, TestingSinkReceiver}
+  alias Membrane.TCP.{Sink, Socket}
   alias Membrane.Testing.{Pipeline, Source}
 
   @localhost {127, 0, 0, 1}
@@ -19,7 +19,7 @@ defmodule Membrane.TCP.SinkPipelineTest do
     Socket.close(socket)
   end
 
-  def receive_data(socket, received_data \\ "", terminator \\ ".") do
+  defp receive_data(socket, received_data \\ "", terminator \\ ".") do
     {:ok, payload} = Socket.recv(socket)
 
     if String.ends_with?(payload, terminator) do
@@ -70,7 +70,7 @@ defmodule Membrane.TCP.SinkPipelineTest do
       assert {:ok, socket} = Socket.accept(listening_socket)
       Socket.close(listening_socket)
       # time for a pipeline to enter playing playback
-      Process.sleep(100)
+      Process.sleep(200)
       run_pipeline(pipeline, socket)
     end
 
@@ -101,7 +101,7 @@ defmodule Membrane.TCP.SinkPipelineTest do
                })
 
       # time for a pipeline to enter playing playback
-      Process.sleep(100)
+      Process.sleep(200)
       run_pipeline(pipeline, connected_client_socket)
     end
 
@@ -121,7 +121,7 @@ defmodule Membrane.TCP.SinkPipelineTest do
                  test_process: self()
                )
 
-      Process.sleep(100)
+      Process.sleep(200)
       run_pipeline(pipeline, server_socket)
     end
 
@@ -141,7 +141,7 @@ defmodule Membrane.TCP.SinkPipelineTest do
                  test_process: self()
                )
 
-      Process.sleep(100)
+      Process.sleep(200)
       run_pipeline(pipeline, client_socket)
     end
   end

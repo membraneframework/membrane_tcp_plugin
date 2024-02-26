@@ -10,16 +10,15 @@ defmodule Membrane.TCP.SourcePipelineTest do
   @server_port_no 5052
 
   @payload_frames 100
+  @data Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
 
   defp run_pipeline(pipeline, socket) do
-    data = Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
-
-    Enum.each(data, fn elem ->
+    Enum.each(@data, fn elem ->
       Socket.send(socket, elem)
     end)
 
     received_data = TestingSinkReceiver.receive_data(pipeline)
-    assert received_data == Enum.join(data)
+    assert received_data == Enum.join(@data)
     Pipeline.terminate(pipeline)
     Socket.close(socket)
   end

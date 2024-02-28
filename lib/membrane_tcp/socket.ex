@@ -36,16 +36,18 @@ defmodule Membrane.TCP.Socket do
         socket_handle ->
           {:ok, {socket_address, socket_port}} = :inet.sockname(socket_handle)
 
-          if sockets_config.local_address not in [socket_address, :any] do
-            raise "Local address passed in options not mathing the one of the passed socket."
-          end
+          cond do
+            sockets_config.local_address not in [socket_address, :any] ->
+              raise "Local address passed in options not matching the one of the passed socket."
 
-          if sockets_config.local_port_no not in [socket_port, 0] do
-            raise "Local port passed in options not mathing the one of the passed socket."
-          end
+            sockets_config.local_port_no not in [socket_port, 0] ->
+              raise "Local port passed in options not matching the one of the passed socket."
 
-          if not match?({:ok, _peername}, :inet.peername(socket_handle)) do
-            raise "Local socket not connected."
+            not match?({:ok, _peername}, :inet.peername(socket_handle)) ->
+              raise "Local socket not connected."
+
+            true ->
+              :ok
           end
 
           %__MODULE__{

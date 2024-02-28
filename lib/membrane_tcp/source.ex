@@ -39,7 +39,7 @@ defmodule Membrane.TCP.Source do
                 spec: :gen_tcp.socket() | nil,
                 default: nil,
                 description: """
-                Already connected TCP socket with connection side mathing the one passed
+                Already connected TCP socket with connection side matching the one passed
                 as an option.
                 """
               ],

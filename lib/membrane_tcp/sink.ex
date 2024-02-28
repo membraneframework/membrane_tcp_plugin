@@ -36,11 +36,11 @@ defmodule Membrane.TCP.Sink do
                 """
               ],
               local_socket: [
-                spec: Socket.t(),
+                spec: :gen_tcp.socket() | nil,
                 default: nil,
                 description: """
                 Already connected TCP socket with connection side mathing the one passed
-                as an option, has to be connected.
+                as an option.
                 """
               ]
 

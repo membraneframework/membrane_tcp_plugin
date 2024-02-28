@@ -36,11 +36,11 @@ defmodule Membrane.TCP.Source do
                 """
               ],
               local_socket: [
-                spec: Socket.t() | nil,
+                spec: :gen_tcp.socket() | nil,
                 default: nil,
                 description: """
                 Already connected TCP socket with connection side mathing the one passed
-                as an option, has to be connected.
+                as an option.
                 """
               ],
               recv_buffer_size: [

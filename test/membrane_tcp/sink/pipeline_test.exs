@@ -113,7 +113,7 @@ defmodule Membrane.TCP.SinkPipelineTest do
             })
             |> child(:tcp_sink, %Sink{
               connection_side: :client,
-              local_socket: client_socket
+              local_socket: client_socket.socket_handle
             }),
           test_process: self()
         )
@@ -132,7 +132,7 @@ defmodule Membrane.TCP.SinkPipelineTest do
             })
             |> child(:tcp_sink, %Sink{
               connection_side: :server,
-              local_socket: server_socket
+              local_socket: server_socket.socket_handle
             }),
           test_process: self()
         )

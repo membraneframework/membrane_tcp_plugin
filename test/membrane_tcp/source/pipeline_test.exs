@@ -108,7 +108,7 @@ defmodule Membrane.TCP.SourcePipelineTest do
           spec:
             child(:tcp_source, %Source{
               connection_side: :client,
-              local_socket: client_socket
+              local_socket: client_socket.socket_handle
             })
             |> child(:sink, Sink),
           test_process: self()
@@ -127,7 +127,7 @@ defmodule Membrane.TCP.SourcePipelineTest do
           spec:
             child(:tcp_source, %Source{
               connection_side: :server,
-              local_socket: server_socket
+              local_socket: server_socket.socket_handle
             })
             |> child(:sink, Sink),
           test_process: self()

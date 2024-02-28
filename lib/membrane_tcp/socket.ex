@@ -1,14 +1,12 @@
 defmodule Membrane.TCP.Socket do
-  @moduledoc """
-  TCP Socket behavior
-  """
+  @moduledoc false
 
   @enforce_keys [:connection_side, :port_no, :ip_address]
   defstruct [:port_no, :ip_address, :socket_handle, :state, :connection_side, sock_opts: []]
 
   @type t :: %__MODULE__{
-          port_no: :inet.port_number(),
           ip_address: :inet.socket_address(),
+          port_no: :inet.port_number(),
           socket_handle: :gen_tcp.socket() | nil,
           state: :listening | :connected | nil,
           connection_side: :server | :client | nil,
@@ -19,34 +17,49 @@ defmodule Membrane.TCP.Socket do
           connection_side: :server | :client | {:client, :inet.ip_address(), :inet.port_number()},
           local_address: :inet.socket_address(),
           local_port_no: :inet.port_number(),
-          local_socket: t() | nil
+          local_socket: :gen_tcp.socket() | nil
         }
 
   @spec create_socket_pair(socket_pair_config(), keyword()) ::
           {local_socket :: t(), remote_socket :: t() | nil}
-  def create_socket_pair(
-        %{connection_side: connection_side, local_socket: local_socket} = sockets_config,
-        local_socket_options \\ []
-      ) do
+  def create_socket_pair(sockets_config, local_socket_options \\ []) do
     local_socket =
-      case local_socket do
+      case sockets_config.local_socket do
         nil ->
           %__MODULE__{
             ip_address: sockets_config.local_address,
             port_no: sockets_config.local_port_no,
             sock_opts: local_socket_options,
-            connection_side: connection_side
+            connection_side: sockets_config.connection_side
           }
 
-        %__MODULE__{connection_side: ^connection_side, state: :connected} ->
-          local_socket
+        socket_handle ->
+          {:ok, {socket_address, socket_port}} = :inet.sockname(socket_handle)
 
-        _not_matching_connection_side_socket ->
-          raise "Connection side of provided socket not matching options"
+          if sockets_config.local_address not in [socket_address, :any] do
+            raise "Local address passed in options not mathing the one of the passed socket."
+          end
+
+          if sockets_config.local_port_no not in [socket_port, 0] do
+            raise "Local port passed in options not mathing the one of the passed socket."
+          end
+
+          if not match?({:ok, _peername}, :inet.peername(socket_handle)) do
+            raise "Local socket not connected."
+          end
+
+          %__MODULE__{
+            ip_address: sockets_config.local_address,
+            port_no: sockets_config.local_port_no,
+            socket_handle: socket_handle,
+            state: :connected,
+            connection_side: sockets_config.connection_side,
+            sock_opts: local_socket_options
+          }
       end
 
     remote_socket =
-      case connection_side do
+      case sockets_config.connection_side do
         :server ->
           nil
 

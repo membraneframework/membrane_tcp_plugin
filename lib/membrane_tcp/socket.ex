@@ -140,9 +140,9 @@ defmodule Membrane.TCP.Socket do
     :gen_tcp.send(socket_handle, payload)
   end
 
-  @spec recv(socket :: t()) ::
+  @spec recv(socket :: t(), timeout :: non_neg_integer()) ::
           {:ok, Membrane.Payload.t()} | {:error, :closed | :timeout | :inet.posix()}
-  def recv(%__MODULE__{socket_handle: socket_handle}) do
-    :gen_tcp.recv(socket_handle, 0, 0)
+  def recv(%__MODULE__{socket_handle: socket_handle}, timeout \\ 0) do
+    :gen_tcp.recv(socket_handle, 0, timeout)
   end
 end

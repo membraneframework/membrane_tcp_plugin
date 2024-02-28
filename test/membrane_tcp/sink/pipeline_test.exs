@@ -20,12 +20,12 @@ defmodule Membrane.TCP.SinkPipelineTest do
   end
 
   defp receive_data(socket, received_data \\ "", terminator \\ ".") do
-    {:ok, payload} = Socket.recv(socket)
+    {:ok, payload} = Socket.recv(socket, 250)
 
     if String.ends_with?(payload, terminator) do
       received_data <> payload
     else
-      receive_data(socket, received_data <> payload)
+      receive_data(socket, received_data <> payload, terminator)
     end
   end
 
@@ -56,36 +56,35 @@ defmodule Membrane.TCP.SinkPipelineTest do
                }
                |> Socket.listen()
 
-      assert pipeline =
-               Pipeline.start_link_supervised!(
-                 spec:
-                   child(:source, %Source{output: @data})
-                   |> child(:sink, %Sink{
-                     local_address: @localhost,
-                     connection_side: {:client, @localhost, @server_port_no}
-                   }),
-                 test_process: self()
-               )
+      pipeline =
+        Pipeline.start_link_supervised!(
+          spec:
+            child(:source, %Source{output: @data})
+            |> child(:tcp_sink, %Sink{
+              local_address: @localhost,
+              connection_side: {:client, @localhost, @server_port_no}
+            }),
+          test_process: self()
+        )
 
       assert {:ok, socket} = Socket.accept(listening_socket)
       Socket.close(listening_socket)
-      # time for a pipeline to enter playing playback
-      Process.sleep(200)
+
       run_pipeline(pipeline, socket)
     end
 
     test "server-side pipeline created without a socket" do
-      assert pipeline =
-               Pipeline.start_link_supervised!(
-                 spec:
-                   child(:tcp_source, %Source{output: @data})
-                   |> child(:sink, %Sink{
-                     connection_side: :server,
-                     local_address: @localhost,
-                     local_port_no: @server_port_no
-                   }),
-                 test_process: self()
-               )
+      pipeline =
+        Pipeline.start_link_supervised!(
+          spec:
+            child(:source, %Source{output: @data})
+            |> child(:tcp_sink, %Sink{
+              connection_side: :server,
+              local_address: @localhost,
+              local_port_no: @server_port_no
+            }),
+          test_process: self()
+        )
 
       assert {:ok, connected_client_socket} =
                %Socket{
@@ -100,48 +99,44 @@ defmodule Membrane.TCP.SinkPipelineTest do
                  port_no: @server_port_no
                })
 
-      # time for a pipeline to enter playing playback
-      Process.sleep(200)
       run_pipeline(pipeline, connected_client_socket)
     end
 
     test "client-side pipeline created with an already connected socket" do
       {client_socket, server_socket} = create_connected_socket_pair()
 
-      assert pipeline =
-               Pipeline.start_link_supervised!(
-                 spec:
-                   child(:tcp_source, %Source{
-                     output: @data
-                   })
-                   |> child(:sink, %Sink{
-                     connection_side: :client,
-                     local_socket: client_socket
-                   }),
-                 test_process: self()
-               )
+      pipeline =
+        Pipeline.start_link_supervised!(
+          spec:
+            child(:source, %Source{
+              output: @data
+            })
+            |> child(:tcp_sink, %Sink{
+              connection_side: :client,
+              local_socket: client_socket
+            }),
+          test_process: self()
+        )
 
-      Process.sleep(200)
       run_pipeline(pipeline, server_socket)
     end
 
     test "server-side pipeline created with an already connected socket" do
       {client_socket, server_socket} = create_connected_socket_pair()
 
-      assert pipeline =
-               Pipeline.start_link_supervised!(
-                 spec:
-                   child(:tcp_source, %Source{
-                     output: @data
-                   })
-                   |> child(:sink, %Sink{
-                     connection_side: :server,
-                     local_socket: server_socket
-                   }),
-                 test_process: self()
-               )
+      pipeline =
+        Pipeline.start_link_supervised!(
+          spec:
+            child(:source, %Source{
+              output: @data
+            })
+            |> child(:tcp_sink, %Sink{
+              connection_side: :server,
+              local_socket: server_socket
+            }),
+          test_process: self()
+        )
 
-      Process.sleep(200)
       run_pipeline(pipeline, client_socket)
     end
   end

@@ -1,11 +1,10 @@
-defmodule Membrane.TCP.SourcePipelineTest do
+defmodule Membrane.TCP.SinkPipelineTest do
   use ExUnit.Case, async: false
 
   import Membrane.ChildrenSpec
-  import Membrane.Testing.Assertions
 
-  alias Membrane.TCP.{Socket, Source, TestingSinkReceiver}
-  alias Membrane.Testing.{Pipeline, Sink}
+  alias Membrane.TCP.{Sink, Socket}
+  alias Membrane.Testing.{Pipeline, Source}
 
   @localhost {127, 0, 0, 1}
   @server_port_no 5052
@@ -14,14 +13,20 @@ defmodule Membrane.TCP.SourcePipelineTest do
   @data Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
 
   defp run_pipeline(pipeline, socket) do
-    Enum.each(@data, fn elem ->
-      Socket.send(socket, elem)
-    end)
-
-    received_data = TestingSinkReceiver.receive_data(pipeline)
+    received_data = receive_data(socket)
     assert received_data == Enum.join(@data)
     Pipeline.terminate(pipeline)
     Socket.close(socket)
+  end
+
+  defp receive_data(socket, received_data \\ "", terminator \\ ".") do
+    {:ok, payload} = Socket.recv(socket, 250)
+
+    if String.ends_with?(payload, terminator) do
+      received_data <> payload
+    else
+      receive_data(socket, received_data <> payload, terminator)
+    end
   end
 
   defp create_connected_socket_pair() do
@@ -46,26 +51,24 @@ defmodule Membrane.TCP.SourcePipelineTest do
                %Socket{
                  connection_side: :server,
                  ip_address: @localhost,
-                 port_no: @server_port_no
+                 port_no: @server_port_no,
+                 sock_opts: [active: false]
                }
                |> Socket.listen()
 
       pipeline =
         Pipeline.start_link_supervised!(
           spec:
-            child(:tcp_source, %Source{
+            child(:source, %Source{output: @data})
+            |> child(:tcp_sink, %Sink{
               local_address: @localhost,
               connection_side: {:client, @localhost, @server_port_no}
-            })
-            |> child(:sink, Sink),
+            }),
           test_process: self()
         )
 
       assert {:ok, socket} = Socket.accept(listening_socket)
-
       Socket.close(listening_socket)
-
-      assert_sink_playing(pipeline, :sink)
 
       run_pipeline(pipeline, socket)
     end
@@ -74,12 +77,12 @@ defmodule Membrane.TCP.SourcePipelineTest do
       pipeline =
         Pipeline.start_link_supervised!(
           spec:
-            child(:tcp_source, %Source{
+            child(:source, %Source{output: @data})
+            |> child(:tcp_sink, %Sink{
               connection_side: :server,
               local_address: @localhost,
               local_port_no: @server_port_no
-            })
-            |> child(:sink, Sink),
+            }),
           test_process: self()
         )
 
@@ -87,15 +90,14 @@ defmodule Membrane.TCP.SourcePipelineTest do
                %Socket{
                  connection_side: {:client, @localhost, @server_port_no},
                  port_no: 0,
-                 ip_address: @localhost
+                 ip_address: @localhost,
+                 sock_opts: [active: false]
                }
                |> Socket.connect(%Socket{
                  connection_side: :server,
                  ip_address: @localhost,
                  port_no: @server_port_no
                })
-
-      assert_sink_playing(pipeline, :sink)
 
       run_pipeline(pipeline, connected_client_socket)
     end
@@ -106,15 +108,15 @@ defmodule Membrane.TCP.SourcePipelineTest do
       pipeline =
         Pipeline.start_link_supervised!(
           spec:
-            child(:tcp_source, %Source{
+            child(:source, %Source{
+              output: @data
+            })
+            |> child(:tcp_sink, %Sink{
               connection_side: :client,
               local_socket: client_socket.socket_handle
-            })
-            |> child(:sink, Sink),
+            }),
           test_process: self()
         )
-
-      assert_sink_playing(pipeline, :sink)
 
       run_pipeline(pipeline, server_socket)
     end
@@ -125,15 +127,15 @@ defmodule Membrane.TCP.SourcePipelineTest do
       pipeline =
         Pipeline.start_link_supervised!(
           spec:
-            child(:tcp_source, %Source{
+            child(:source, %Source{
+              output: @data
+            })
+            |> child(:tcp_sink, %Sink{
               connection_side: :server,
               local_socket: server_socket.socket_handle
-            })
-            |> child(:sink, Sink),
+            }),
           test_process: self()
         )
-
-      assert_sink_playing(pipeline, :sink)
 
       run_pipeline(pipeline, client_socket)
     end

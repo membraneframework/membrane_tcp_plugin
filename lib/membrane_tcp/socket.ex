@@ -1,14 +1,12 @@
 defmodule Membrane.TCP.Socket do
-  @moduledoc """
-  TCP Socket behavior
-  """
+  @moduledoc false
 
   @enforce_keys [:connection_side, :port_no, :ip_address]
   defstruct [:port_no, :ip_address, :socket_handle, :state, :connection_side, sock_opts: []]
 
   @type t :: %__MODULE__{
-          port_no: :inet.port_number(),
           ip_address: :inet.socket_address(),
+          port_no: :inet.port_number(),
           socket_handle: :gen_tcp.socket() | nil,
           state: :listening | :connected | nil,
           connection_side: :server | :client | nil,
@@ -19,51 +17,21 @@ defmodule Membrane.TCP.Socket do
           connection_side: :server | :client | {:client, :inet.ip_address(), :inet.port_number()},
           local_address: :inet.socket_address(),
           local_port_no: :inet.port_number(),
-          local_socket: t() | nil
+          local_socket: :gen_tcp.socket() | nil
         }
 
   @spec create_socket_pair(socket_pair_config(), keyword()) ::
-          {local_socket :: t(), server_socket :: t() | nil}
-  def create_socket_pair(
-        %{connection_side: connection_side, local_socket: local_socket} = sockets_config,
-        local_socket_options \\ []
-      ) do
-    local_socket =
-      case local_socket do
-        nil ->
-          %__MODULE__{
-            ip_address: sockets_config.local_address,
-            port_no: sockets_config.local_port_no,
-            sock_opts: local_socket_options,
-            connection_side: connection_side
-          }
+          {local_socket :: t(), remote_socket :: t() | nil}
+  def create_socket_pair(sockets_config, local_socket_options \\ []) do
+    local_socket = create_local_socket(sockets_config, local_socket_options)
 
-        %__MODULE__{connection_side: ^connection_side, state: :connected} ->
-          local_socket
+    remote_socket = create_remote_socket(sockets_config, local_socket)
 
-        _not_matching_connection_side_socket ->
-          raise "Connection side of provided socket not matching options"
-      end
-
-    server_socket =
-      case connection_side do
-        :server ->
-          nil
-
-        :client ->
-          {:ok, {server_address, server_port}} = :inet.peername(local_socket.socket_handle)
-
-          %__MODULE__{ip_address: server_address, port_no: server_port, connection_side: :server}
-
-        {:client, address, port_no} ->
-          %__MODULE__{ip_address: address, port_no: port_no, connection_side: :server}
-      end
-
-    {local_socket, server_socket}
+    {local_socket, remote_socket}
   end
 
   @spec listen(socket :: t()) :: {:ok, listen_socket :: t()} | {:error, :inet.posix()}
-  def listen(%__MODULE__{port_no: port_no, ip_address: ip, sock_opts: sock_opts} = socket) do
+  def listen(%__MODULE__{port_no: port_no, ip_address: ip, sock_opts: sock_opts} = local_socket) do
     listen_result =
       :gen_tcp.listen(port_no, [:binary, ip: ip, active: false, reuseaddr: true] ++ sock_opts)
 
@@ -71,7 +39,7 @@ defmodule Membrane.TCP.Socket do
          # Port may change if 0 is used, ip - when either `:any` or `:loopback` is passed
          {:ok, {real_ip_addr, real_port_no}} <- :inet.sockname(listen_socket_handle) do
       updated_socket = %__MODULE__{
-        socket
+        local_socket
         | socket_handle: listen_socket_handle,
           port_no: real_port_no,
           ip_address: real_ip_addr,
@@ -140,9 +108,60 @@ defmodule Membrane.TCP.Socket do
     :gen_tcp.send(socket_handle, payload)
   end
 
-  @spec recv(socket :: t()) ::
+  @spec recv(socket :: t(), timeout :: non_neg_integer()) ::
           {:ok, Membrane.Payload.t()} | {:error, :closed | :timeout | :inet.posix()}
-  def recv(%__MODULE__{socket_handle: socket_handle}) do
-    :gen_tcp.recv(socket_handle, 0, 0)
+  def recv(%__MODULE__{socket_handle: socket_handle}, timeout \\ 0) do
+    :gen_tcp.recv(socket_handle, 0, timeout)
+  end
+
+  defp create_local_socket(%{local_socket: nil} = sockets_config, local_socket_options) do
+    %__MODULE__{
+      ip_address: sockets_config.local_address,
+      port_no: sockets_config.local_port_no,
+      sock_opts: local_socket_options,
+      connection_side: sockets_config.connection_side
+    }
+  end
+
+  defp create_local_socket(%{local_socket: socket_handle} = sockets_config, local_socket_options) do
+    {:ok, {socket_address, socket_port}} = :inet.sockname(socket_handle)
+
+    cond do
+      sockets_config.local_address not in [socket_address, :any] ->
+        raise "Local address passed in options not matching the one of the passed socket."
+
+      sockets_config.local_port_no not in [socket_port, 0] ->
+        raise "Local port passed in options not matching the one of the passed socket."
+
+      not match?({:ok, _peername}, :inet.peername(socket_handle)) ->
+        raise "Local socket not connected."
+
+      true ->
+        :ok
+    end
+
+    %__MODULE__{
+      ip_address: sockets_config.local_address,
+      port_no: sockets_config.local_port_no,
+      socket_handle: socket_handle,
+      state: :connected,
+      connection_side: sockets_config.connection_side,
+      sock_opts: local_socket_options
+    }
+  end
+
+  defp create_remote_socket(sockets_config, local_socket) do
+    case sockets_config.connection_side do
+      :server ->
+        nil
+
+      :client ->
+        {:ok, {server_address, server_port}} = :inet.peername(local_socket.socket_handle)
+
+        %__MODULE__{ip_address: server_address, port_no: server_port, connection_side: :server}
+
+      {:client, address, port_no} ->
+        %__MODULE__{ip_address: address, port_no: port_no, connection_side: :server}
+    end
   end
 end

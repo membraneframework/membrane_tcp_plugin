@@ -9,7 +9,7 @@ defmodule Membrane.TCP.TestingSinkReceiver do
     if String.ends_with?(payload, terminator) do
       received_data <> payload
     else
-      receive_data(pipeline, received_data <> payload)
+      receive_data(pipeline, received_data <> payload, terminator)
     end
   end
 end

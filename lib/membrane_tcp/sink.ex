@@ -82,4 +82,10 @@ defmodule Membrane.TCP.Sink do
 
   @impl true
   defdelegate handle_setup(context, state), to: CommonSocketBehaviour
+
+  @impl true
+  def handle_end_of_stream(_pad, _context, state) do
+    local_socket = Socket.close(state.local_socket)
+    {[], %{state | local_socket: local_socket}}
+  end
 end

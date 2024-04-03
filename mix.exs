@@ -6,7 +6,6 @@ defmodule Membrane.TCP.MixProject do
 
   def project do
     [
-      homepage_url: "https://membrane.stream",
       app: :membrane_tcp_plugin,
       version: @version,
       elixir: "~> 1.12",
@@ -17,7 +16,8 @@ defmodule Membrane.TCP.MixProject do
       source_url: @github_url,
       docs: docs(),
       deps: deps(),
-      dialyzer: dialyzer()
+      dialyzer: dialyzer(),
+      homepage_url: "https://membrane.stream"
     ]
   end
 

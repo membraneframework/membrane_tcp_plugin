@@ -40,7 +40,11 @@ defmodule Membrane.TCP.Source do
                 default: nil,
                 description: """
                 Already connected TCP socket, if provided will be used instead of creating
-                and connecting a new one.
+                and connecting a new one. It's REQUIRED to pass control of it to this element
+                from the previous owner. It can be done by receiving a
+                `{:request_socket_control, socket, pid}` message sent by this element to it's
+                parent and calling `:inet.controlling_process(socket, pid)` (needs to be called by
+                a process currently controlling the socket)
                 """
               ],
               recv_buffer_size: [
@@ -65,7 +69,16 @@ defmodule Membrane.TCP.Source do
         {:client, _server_address, _server_port_no} -> :client
       end
 
-    {[],
+    actions =
+      case local_socket do
+        %Socket{socket_handle: nil} ->
+          []
+
+        %Socket{socket_handle: handle} ->
+          [notify_parent: {:request_socket_control, handle, self()}]
+      end
+
+    {actions,
      %{
        connection_side: connection_side,
        local_socket: local_socket,
@@ -80,30 +93,35 @@ defmodule Membrane.TCP.Source do
 
   @impl true
   def handle_demand(_pad, _size, _unit, _ctx, state) do
-    case Socket.recv(state.local_socket) do
-      {:ok, payload} ->
-        {:ok, {peer_address, peer_port_no}} = :inet.peername(state.local_socket.socket_handle)
+    :inet.setopts(state.local_socket.socket_handle, active: :once)
+    {[], state}
+  end
 
-        metadata =
-          Map.new()
-          |> Map.put(:tcp_source_address, peer_address)
-          |> Map.put(:tcp_source_port, peer_port_no)
-          |> Map.put(:arrival_ts, Membrane.Time.vm_time())
+  @impl true
+  def handle_info({:tcp, _socket, payload}, _ctx, state) do
+    IO.inspect(state.remote_socket, label: "dupa")
 
-        {
-          [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}, redemand: :output],
-          state
-        }
+    metadata =
+      %{
+        tcp_source_address: state.remote_socket.ip_address,
+        tcp_source_port: state.remote_socket.port_no,
+        arrival_ts: Membrane.Time.vm_time()
+      }
 
-      {:error, :timeout} ->
-        {[redemand: :output], state}
+    {
+      [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}, redemand: :output],
+      state
+    }
+  end
 
-      {:error, :closed} ->
-        {[end_of_stream: :output], state}
+  @impl true
+  def handle_info({:tcp_closed, _socket}, _ctx, state) do
+    {[end_of_stream: :output], state}
+  end
 
-      {:error, reason} ->
-        raise "TCP Socket receiving error, reason: #{inspect(reason)}"
-    end
+  @impl true
+  def handle_info({:tcp_error, _socket, reason}, _ctx, _state) do
+    raise "TCP Socket receiving error, reason: #{inspect(reason)}"
   end
 
   @impl true

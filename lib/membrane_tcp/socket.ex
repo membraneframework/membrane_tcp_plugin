@@ -140,6 +140,8 @@ defmodule Membrane.TCP.Socket do
         :ok
     end
 
+    :inet.setopts(socket_handle, active: false)
+
     %__MODULE__{
       ip_address: sockets_config.local_address,
       port_no: sockets_config.local_port_no,

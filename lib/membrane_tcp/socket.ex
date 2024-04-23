@@ -9,7 +9,7 @@ defmodule Membrane.TCP.Socket do
           port_no: :inet.port_number(),
           socket_handle: :gen_tcp.socket() | nil,
           state: :listening | :connected | nil,
-          connection_side: :server | :client | nil,
+          connection_side: :server | :client,
           sock_opts: [:gen_tcp.option()]
         }
 

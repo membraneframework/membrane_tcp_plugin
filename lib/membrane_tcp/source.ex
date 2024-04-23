@@ -43,7 +43,7 @@ defmodule Membrane.TCP.Source do
                 and connecting a new one. It's REQUIRED to pass control of it to this element
                 from the previous owner. It can be done by receiving a
                 `{:request_socket_control, socket, pid}` message sent by this element to it's
-                parent and calling `:inet.controlling_process(socket, pid)` (needs to be called by
+                parent and calling `:gen_tcp.controlling_process(socket, pid)` (needs to be called by
                 a process currently controlling the socket)
                 """
               ],
@@ -99,8 +99,6 @@ defmodule Membrane.TCP.Source do
 
   @impl true
   def handle_info({:tcp, _socket, payload}, _ctx, state) do
-    IO.inspect(state.remote_socket, label: "dupa")
-
     metadata =
       %{
         tcp_source_address: state.remote_socket.ip_address,

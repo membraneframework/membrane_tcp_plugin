@@ -49,7 +49,28 @@ defmodule Membrane.TCP.CommonSocketBehaviour do
       tag: :tcp_guard
     )
 
-    {[notify_parent: notification], %{state | local_socket: connected_socket}}
+    remote_socket =
+      if state.remote_socket != nil do
+        state.remote_socket
+      else
+        {:ok, {remote_address, remote_port}} = :inet.peername(connected_socket.socket_handle)
+
+        remote_connection_side =
+          case connected_socket.connection_side do
+            :client -> :server
+            :server -> :client
+          end
+
+        %Socket{
+          connection_side: remote_connection_side,
+          ip_address: remote_address,
+          port_no: remote_port,
+          state: :connected
+        }
+      end
+
+    {[notify_parent: notification],
+     %{state | local_socket: connected_socket, remote_socket: remote_socket}}
   end
 
   defp handle_local_socket_connection_result({:error, reason}, _ctx, _state) do

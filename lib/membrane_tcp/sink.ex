@@ -48,7 +48,8 @@ defmodule Membrane.TCP.Sink do
 
   @impl true
   def handle_init(_context, opts) do
-    {local_socket, remote_socket} = Socket.create_socket_pair(Map.from_struct(opts))
+    {local_socket, remote_socket} =
+      CommonSocketBehaviour.create_socket_pair(Map.from_struct(opts))
 
     connection_side =
       case opts.connection_side do
@@ -66,6 +67,9 @@ defmodule Membrane.TCP.Sink do
   end
 
   @impl true
+  defdelegate handle_setup(context, state), to: CommonSocketBehaviour
+
+  @impl true
   def handle_playing(_context, state) do
     {[], state}
   end
@@ -79,9 +83,6 @@ defmodule Membrane.TCP.Sink do
       {:error, cause} -> raise "Error sending TCP packet, reason: #{inspect(cause)}"
     end
   end
-
-  @impl true
-  defdelegate handle_setup(context, state), to: CommonSocketBehaviour
 
   @impl true
   def handle_end_of_stream(_pad, _context, state) do

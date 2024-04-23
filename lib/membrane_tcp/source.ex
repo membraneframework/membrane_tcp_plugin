@@ -60,7 +60,9 @@ defmodule Membrane.TCP.Source do
   @impl true
   def handle_init(_context, opts) do
     {local_socket, remote_socket} =
-      Socket.create_socket_pair(Map.from_struct(opts), recbuf: opts.recv_buffer_size)
+      CommonSocketBehaviour.create_socket_pair(Map.from_struct(opts),
+        recbuf: opts.recv_buffer_size
+      )
 
     connection_side =
       case opts.connection_side do
@@ -85,6 +87,9 @@ defmodule Membrane.TCP.Source do
        remote_socket: remote_socket
      }}
   end
+
+  @impl true
+  defdelegate handle_setup(context, state), to: CommonSocketBehaviour
 
   @impl true
   def handle_playing(_ctx, state) do
@@ -121,9 +126,6 @@ defmodule Membrane.TCP.Source do
   def handle_info({:tcp_error, _socket, reason}, _ctx, _state) do
     raise "TCP Socket receiving error, reason: #{inspect(reason)}"
   end
-
-  @impl true
-  defdelegate handle_setup(context, state), to: CommonSocketBehaviour
 
   @impl true
   def handle_terminate_request(_ctx, state) do

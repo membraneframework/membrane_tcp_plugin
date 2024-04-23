@@ -2,33 +2,23 @@ defmodule Membrane.TCP.Socket do
   @moduledoc false
 
   @enforce_keys [:connection_side, :port_no, :ip_address]
-  defstruct [:port_no, :ip_address, :socket_handle, :state, :connection_side, sock_opts: []]
+  defstruct [
+    :port_no,
+    :ip_address,
+    :socket_handle,
+    :connection_side,
+    state: :uninitialized,
+    sock_opts: []
+  ]
 
   @type t :: %__MODULE__{
           ip_address: :inet.socket_address(),
           port_no: :inet.port_number(),
           socket_handle: :gen_tcp.socket() | nil,
-          state: :listening | :connected | nil,
+          state: :listening | :connected | :uninitialized,
           connection_side: :server | :client,
           sock_opts: [:gen_tcp.option()]
         }
-
-  @type socket_pair_config :: %{
-          connection_side: :server | :client | {:client, :inet.ip_address(), :inet.port_number()},
-          local_address: :inet.socket_address(),
-          local_port_no: :inet.port_number(),
-          local_socket: :gen_tcp.socket() | nil
-        }
-
-  @spec create_socket_pair(socket_pair_config(), keyword()) ::
-          {local_socket :: t(), remote_socket :: t() | nil}
-  def create_socket_pair(sockets_config, local_socket_options \\ []) do
-    local_socket = create_local_socket(sockets_config, local_socket_options)
-
-    remote_socket = create_remote_socket(sockets_config, local_socket)
-
-    {local_socket, remote_socket}
-  end
 
   @spec listen(socket :: t()) :: {:ok, listen_socket :: t()} | {:error, :inet.posix()}
   def listen(%__MODULE__{port_no: port_no, ip_address: ip, sock_opts: sock_opts} = local_socket) do
@@ -99,7 +89,7 @@ defmodule Membrane.TCP.Socket do
   @spec close(socket :: t()) :: t()
   def close(%__MODULE__{socket_handle: handle} = socket) when is_port(handle) do
     :ok = :gen_tcp.close(handle)
-    %__MODULE__{socket | socket_handle: nil, state: nil}
+    %__MODULE__{socket | socket_handle: nil, state: :uninitialized}
   end
 
   @spec send(local_socket :: t(), payload :: Membrane.Payload.t()) ::
@@ -112,58 +102,5 @@ defmodule Membrane.TCP.Socket do
           {:ok, Membrane.Payload.t()} | {:error, :closed | :timeout | :inet.posix()}
   def recv(%__MODULE__{socket_handle: socket_handle}, timeout \\ 0) do
     :gen_tcp.recv(socket_handle, 0, timeout)
-  end
-
-  defp create_local_socket(%{local_socket: nil} = sockets_config, local_socket_options) do
-    %__MODULE__{
-      ip_address: sockets_config.local_address,
-      port_no: sockets_config.local_port_no,
-      sock_opts: local_socket_options,
-      connection_side: sockets_config.connection_side
-    }
-  end
-
-  defp create_local_socket(%{local_socket: socket_handle} = sockets_config, local_socket_options) do
-    {:ok, {socket_address, socket_port}} = :inet.sockname(socket_handle)
-
-    cond do
-      sockets_config.local_address not in [socket_address, :any] ->
-        raise "Local address passed in options not matching the one of the passed socket."
-
-      sockets_config.local_port_no not in [socket_port, 0] ->
-        raise "Local port passed in options not matching the one of the passed socket."
-
-      not match?({:ok, _peername}, :inet.peername(socket_handle)) ->
-        raise "Local socket not connected."
-
-      true ->
-        :ok
-    end
-
-    :inet.setopts(socket_handle, active: false)
-
-    %__MODULE__{
-      ip_address: sockets_config.local_address,
-      port_no: sockets_config.local_port_no,
-      socket_handle: socket_handle,
-      state: :connected,
-      connection_side: sockets_config.connection_side,
-      sock_opts: local_socket_options
-    }
-  end
-
-  defp create_remote_socket(sockets_config, local_socket) do
-    case sockets_config.connection_side do
-      :server ->
-        nil
-
-      :client ->
-        {:ok, {server_address, server_port}} = :inet.peername(local_socket.socket_handle)
-
-        %__MODULE__{ip_address: server_address, port_no: server_port, connection_side: :server}
-
-      {:client, address, port_no} ->
-        %__MODULE__{ip_address: address, port_no: port_no, connection_side: :server}
-    end
   end
 end

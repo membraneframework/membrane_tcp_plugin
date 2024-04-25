@@ -97,8 +97,8 @@ defmodule Membrane.TCP.Source do
   end
 
   @impl true
-  def handle_demand(_pad, _size, _unit, _ctx, state) do
-    :inet.setopts(state.local_socket.socket_handle, active: :once)
+  def handle_demand(_pad, size, _unit, _ctx, state) do
+    :inet.setopts(state.local_socket.socket_handle, active: size)
     {[], state}
   end
 

@@ -55,7 +55,10 @@ defmodule Membrane.TCP.Source do
                 """
               ]
 
-  def_output_pad :output, accepted_format: %RemoteStream{type: :bytestream}, flow_control: :manual
+  def_output_pad :output,
+    accepted_format: %RemoteStream{type: :bytestream},
+    flow_control: :manual,
+    demand_unit: :buffers
 
   @impl true
   def handle_init(_context, opts) do
@@ -97,7 +100,7 @@ defmodule Membrane.TCP.Source do
   end
 
   @impl true
-  def handle_demand(_pad, size, _unit, _ctx, state) do
+  def handle_demand(_pad, size, :buffers, _ctx, state) do
     :inet.setopts(state.local_socket.socket_handle, active: size)
     {[], state}
   end
@@ -112,7 +115,7 @@ defmodule Membrane.TCP.Source do
       }
 
     {
-      [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}, redemand: :output],
+      [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}],
       state
     }
   end

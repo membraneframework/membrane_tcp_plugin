@@ -126,6 +126,11 @@ defmodule Membrane.TCP.Source do
   end
 
   @impl true
+  def handle_info({:tcp_passive, _socket}, _ctx, state) do
+    {[], state}
+  end
+
+  @impl true
   def handle_info({:tcp_error, _socket, reason}, _ctx, _state) do
     raise "TCP Socket receiving error, reason: #{inspect(reason)}"
   end

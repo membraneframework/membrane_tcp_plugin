@@ -42,13 +42,21 @@ defmodule Membrane.TCP.Sink do
                 Already connected TCP socket, if provided will be used instead of creating
                 and connecting a new one.
                 """
+              ],
+              socket_options: [
+                spec: list(),
+                default: [],
+                description: """
+                Extra options passed to `:gen_tcp.connect()`.
+                """
               ]
 
   def_input_pad :input, accepted_format: _any
 
   @impl true
   def handle_init(_context, opts) do
-    {local_socket, remote_socket} = Socket.create_socket_pair(Map.from_struct(opts))
+    {local_socket, remote_socket} =
+      Socket.create_socket_pair(Map.from_struct(opts), opts.socket_options)
 
     connection_side =
       case opts.connection_side do

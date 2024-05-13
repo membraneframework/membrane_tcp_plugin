@@ -42,6 +42,13 @@ defmodule Membrane.TCP.Sink do
                 Already connected TCP socket, if provided will be used instead of creating
                 and connecting a new one.
                 """
+              ],
+              close_on_eos: [
+                spec: boolean(),
+                default: true,
+                description: """
+                Automatically close connection on end-of-stream.
+                """
               ]
 
   def_input_pad :input, accepted_format: _any
@@ -61,7 +68,8 @@ defmodule Membrane.TCP.Sink do
      %{
        connection_side: connection_side,
        local_socket: local_socket,
-       remote_socket: remote_socket
+       remote_socket: remote_socket,
+       close_on_eos: opts.close_on_eos
      }}
   end
 
@@ -85,7 +93,11 @@ defmodule Membrane.TCP.Sink do
 
   @impl true
   def handle_end_of_stream(_pad, _context, state) do
-    local_socket = Socket.close(state.local_socket)
-    {[], %{state | local_socket: local_socket}}
+    if state.close_on_eos do
+      local_socket = Socket.close(state.local_socket)
+      {[], %{state | local_socket: local_socket}}
+    else
+      {[], state}
+    end
   end
 end

@@ -60,6 +60,11 @@ defmodule Membrane.TCP.Source do
     flow_control: :manual,
     demand_unit: :buffers
 
+  @typedoc """
+  Notification sent when a local socket handle was provided via `local_socket` option.
+  """
+  @type request_socket_control() :: {:request_socket_control, :gen_tcp.socket(), pid()}
+
   @impl true
   def handle_init(_context, opts) do
     {local_socket, remote_socket} =

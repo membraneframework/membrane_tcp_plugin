@@ -11,15 +11,14 @@ defmodule Membrane.TCP.IntegrationTest do
   @server_port 6789
   @localhost {127, 0, 0, 1}
 
-  @payload_frames 100
+  @payload_frames 1000
+  @data Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
 
   test "send from server-side pipeline and receive on client-side pipeline" do
-    data = Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
-
     sender =
       Pipeline.start_link_supervised!(
         spec:
-          child(:source, %Testing.Source{output: data})
+          child(:source, %Testing.Source{output: @data})
           |> child(:sink, %TCP.Sink{
             connection_side: :server,
             local_address: @localhost,
@@ -45,14 +44,12 @@ defmodule Membrane.TCP.IntegrationTest do
 
     received_data = TCP.TestingSinkReceiver.receive_data(receiver)
 
-    assert received_data == Enum.join(data)
+    assert received_data == Enum.join(@data)
     Pipeline.terminate(sender)
     Pipeline.terminate(receiver)
   end
 
   test "send from client-side pipeline and receive on server-side pipeline" do
-    data = Enum.map(1..@payload_frames, &"(#{&1})") ++ ["."]
-
     receiver =
       Pipeline.start_link_supervised!(
         spec:
@@ -67,7 +64,7 @@ defmodule Membrane.TCP.IntegrationTest do
     sender =
       Pipeline.start_link_supervised!(
         spec:
-          child(:source, %Testing.Source{output: data})
+          child(:source, %Testing.Source{output: @data})
           |> child(:sink, %TCP.Sink{
             connection_side: {:client, @localhost, @server_port},
             local_address: @localhost
@@ -82,7 +79,7 @@ defmodule Membrane.TCP.IntegrationTest do
 
     received_data = TCP.TestingSinkReceiver.receive_data(receiver)
 
-    assert received_data == Enum.join(data)
+    assert received_data == Enum.join(@data)
     Pipeline.terminate(sender)
     Pipeline.terminate(receiver)
   end

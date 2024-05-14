@@ -11,7 +11,7 @@ This package provides TCP Source and Sink, that read and write to TCP sockets.
 Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 
 ```elixir
-	{:membrane_tcp_plugin, "~> 0.3.0"}
+	{:membrane_tcp_plugin, "~> 0.4.0"}
 ```
 
 ## Copyright and License

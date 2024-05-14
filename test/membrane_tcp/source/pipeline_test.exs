@@ -114,6 +114,9 @@ defmodule Membrane.TCP.SourcePipelineTest do
           test_process: self()
         )
 
+      assert_pipeline_notified(pipeline, :tcp_source, {:request_socket_control, socket, pid})
+      :gen_tcp.controlling_process(socket, pid)
+
       assert_sink_playing(pipeline, :sink)
 
       run_pipeline(pipeline, server_socket)
@@ -132,6 +135,9 @@ defmodule Membrane.TCP.SourcePipelineTest do
             |> child(:sink, Sink),
           test_process: self()
         )
+
+      assert_pipeline_notified(pipeline, :tcp_source, {:request_socket_control, socket, pid})
+      :gen_tcp.controlling_process(socket, pid)
 
       assert_sink_playing(pipeline, :sink)
 

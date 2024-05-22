@@ -49,6 +49,15 @@ defmodule Membrane.TCP.Sink do
                 description: """
                 Automatically close connection on end-of-stream.
                 """
+              ],
+              on_connection_closed: [
+                spec: :raise_error | :drop_buffers,
+                default: :raise_error,
+                description: """
+                Defines behavior for handling buffers if connection is unexpectedly closed:
+                - `:raise_error` - Raise an error when writing to a closed socket.
+                - `:drop_buffers` - Drop buffers if socket is closed.
+                """
               ]
 
   def_input_pad :input, accepted_format: _any
@@ -70,7 +79,8 @@ defmodule Membrane.TCP.Sink do
        connection_side: connection_side,
        local_socket: local_socket,
        remote_socket: remote_socket,
-       close_on_eos: opts.close_on_eos
+       close_on_eos: opts.close_on_eos,
+       on_connection_closed: opts.on_connection_closed
      }}
   end
 
@@ -87,8 +97,17 @@ defmodule Membrane.TCP.Sink do
     %{local_socket: local_socket} = state
 
     case Socket.send(local_socket, payload) do
-      :ok -> {[], state}
-      {:error, cause} -> raise "Error sending TCP packet, reason: #{inspect(cause)}"
+      :ok ->
+        {[], state}
+
+      {:error, reason} when reason in [:closed, :enotconn] ->
+        case state.on_connection_closed do
+          :raise_error -> raise "Error sending TCP packet, reason: #{reason}"
+          :drop_buffers -> {[], state}
+        end
+
+      {:error, cause} ->
+        raise "Error sending TCP packet, reason: #{inspect(cause)}"
     end
   end
 

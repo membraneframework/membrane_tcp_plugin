@@ -92,7 +92,8 @@ defmodule Membrane.TCP.Source do
      %{
        connection_side: connection_side,
        local_socket: local_socket,
-       remote_socket: remote_socket
+       remote_socket: remote_socket,
+       sent_info_about_first?: false
      }}
   end
 
@@ -112,6 +113,10 @@ defmodule Membrane.TCP.Source do
 
   @impl true
   def handle_info({:tcp, _socket, payload}, _ctx, state) do
+    if not state.sent_info_about_first? do
+      require Logger
+      Logger.warning("First buffer received123")
+    end
     metadata =
       %{
         tcp_source_address: state.remote_socket.ip_address,
@@ -121,7 +126,7 @@ defmodule Membrane.TCP.Source do
 
     {
       [buffer: {:output, %Buffer{payload: payload, metadata: metadata}}],
-      state
+      %{state | sent_info_about_first?: true}
     }
   end
 

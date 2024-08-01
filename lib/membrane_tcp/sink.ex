@@ -93,6 +93,13 @@ defmodule Membrane.TCP.Sink do
   end
 
   @impl true
+  def handle_start_of_stream(:input, _ctx, state) do
+  require Logger
+  Logger.warning("Starting stream123")
+  {[], state}
+  end
+
+  @impl true
   def handle_buffer(:input, %Buffer{payload: payload}, _context, state) do
     %{local_socket: local_socket} = state
 

@@ -53,6 +53,15 @@ defmodule Membrane.TCP.Source do
                 description: """
                 Size of the receive buffer. Packages of size greater than this buffer will be truncated
                 """
+              ],
+              on_connection_closed: [
+                spec: :raise_error | :send_eos,
+                default: :send_eos,
+                description: """
+                Defines behavior for handling buffers if connection is unexpectedly closed:
+                - `:raise_error` - Raise an error when the socket is closed.
+                - `:send_eos` - Send `:end_of_stream` to the output pad when the socket is closed.
+                """
               ]
 
   def_output_pad :output,
@@ -127,7 +136,10 @@ defmodule Membrane.TCP.Source do
 
   @impl true
   def handle_info({:tcp_closed, _socket}, _ctx, state) do
-    {[end_of_stream: :output], state}
+    case state.on_connection_closed do
+      :raise_error -> raise "The TCP socket has unexpectedly closed"
+      :send_eos -> {[end_of_stream: :output], state}
+    end
   end
 
   @impl true

@@ -58,9 +58,9 @@ defmodule Membrane.TCP.Source do
                 spec: :raise_error | :send_eos,
                 default: :send_eos,
                 description: """
-                Defines behavior for handling buffers if connection is unexpectedly closed:
-                - `:raise_error` - Raise an error when the socket is closed.
-                - `:send_eos` - Send `:end_of_stream` to the output pad when the socket is closed.
+                Defines the element's behavior if the TCP connection is closed by the peer:
+                - `:raise_error` - Raise an error.
+                - `:send_eos` - Send `:end_of_stream` to the output pad.
                 """
               ]
 

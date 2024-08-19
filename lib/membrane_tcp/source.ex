@@ -59,8 +59,8 @@ defmodule Membrane.TCP.Source do
                 default: :send_eos,
                 description: """
                 Defines the element's behavior if the TCP connection is closed by the peer:
-                - `:raise_error` - Raise an error.
-                - `:send_eos` - Send `:end_of_stream` to the output pad.
+                - `:raise_error` - raise an error.
+                - `:send_eos` - send an `:end_of_stream` to the output pad.
                 """
               ]
 
@@ -101,7 +101,8 @@ defmodule Membrane.TCP.Source do
      %{
        connection_side: connection_side,
        local_socket: local_socket,
-       remote_socket: remote_socket
+       remote_socket: remote_socket,
+       on_connection_closed: opts.on_connection_closed
      }}
   end
 

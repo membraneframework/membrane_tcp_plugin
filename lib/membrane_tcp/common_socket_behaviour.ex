@@ -2,8 +2,7 @@ defmodule Membrane.TCP.CommonSocketBehaviour do
   @moduledoc false
 
   alias Membrane.Element
-  alias Membrane.Element.Base
-  alias Membrane.Element.CallbackContext
+  alias Membrane.Element.{Action, CallbackContext}
   alias Membrane.TCP.Socket
 
   @type socket_pair_config :: %{
@@ -23,8 +22,7 @@ defmodule Membrane.TCP.CommonSocketBehaviour do
     {local_socket, remote_socket}
   end
 
-  @spec handle_setup(context :: CallbackContext.t(), state :: Element.state()) ::
-          Base.callback_return()
+  @spec handle_setup(CallbackContext.t(), Element.state()) :: {[Action.t()], Element.state()}
   def handle_setup(
         ctx,
         %{connection_side: :client, local_socket: local_socket, remote_socket: server_socket} =
@@ -111,7 +109,7 @@ defmodule Membrane.TCP.CommonSocketBehaviour do
           {:ok, Socket.t()} | {:error, term()},
           Membrane.Element.CallbackContext.t(),
           Membrane.Element.state()
-        ) :: Membrane.Element.Base.callback_return() | no_return()
+        ) :: {[Action.t()], Element.state()} | no_return()
   defp handle_local_socket_connection_result({:ok, connected_socket}, ctx, state) do
     notification = {:connection_info, connected_socket.ip_address, connected_socket.port_no}
 

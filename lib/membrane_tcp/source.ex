@@ -39,7 +39,7 @@ defmodule Membrane.TCP.Source do
                 spec: :gen_tcp.socket() | nil,
                 default: nil,
                 description: """
-                Already connected TCP socket, if provided will be used instead of creating
+                Already connected TCP socket, if provided it will be used instead of creating
                 and connecting a new one. It's REQUIRED to pass control of it to this element
                 from the previous owner. It can be done by receiving a
                 `{:request_socket_control, socket, pid}` message sent by this element to it's
@@ -52,6 +52,15 @@ defmodule Membrane.TCP.Source do
                 default: 1024 * 1024,
                 description: """
                 Size of the receive buffer. Packages of size greater than this buffer will be truncated
+                """
+              ],
+              on_connection_closed: [
+                spec: :raise_error | :send_eos,
+                default: :send_eos,
+                description: """
+                Defines the element's behavior if the TCP connection is closed by the peer:
+                - `:raise_error` - raise an error.
+                - `:send_eos` - send an `:end_of_stream` on the output pad.
                 """
               ]
 
@@ -92,7 +101,8 @@ defmodule Membrane.TCP.Source do
      %{
        connection_side: connection_side,
        local_socket: local_socket,
-       remote_socket: remote_socket
+       remote_socket: remote_socket,
+       on_connection_closed: opts.on_connection_closed
      }}
   end
 
@@ -127,7 +137,10 @@ defmodule Membrane.TCP.Source do
 
   @impl true
   def handle_info({:tcp_closed, _socket}, _ctx, state) do
-    {[end_of_stream: :output], state}
+    case state.on_connection_closed do
+      :raise_error -> raise "The TCP socket has unexpectedly closed"
+      :send_eos -> {[end_of_stream: :output], state}
+    end
   end
 
   @impl true

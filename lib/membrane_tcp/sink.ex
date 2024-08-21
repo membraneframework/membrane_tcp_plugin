@@ -39,7 +39,7 @@ defmodule Membrane.TCP.Sink do
                 spec: :gen_tcp.socket() | nil,
                 default: nil,
                 description: """
-                Already connected TCP socket, if provided will be used instead of creating
+                Already connected TCP socket, if provided it will be used instead of creating
                 and connecting a new one.
                 """
               ],

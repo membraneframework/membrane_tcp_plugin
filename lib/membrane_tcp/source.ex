@@ -39,7 +39,7 @@ defmodule Membrane.TCP.Source do
                 spec: :gen_tcp.socket() | nil,
                 default: nil,
                 description: """
-                Already connected TCP socket, if provided will be used instead of creating
+                Already connected TCP socket, if provided it will be used instead of creating
                 and connecting a new one. It's REQUIRED to pass control of it to this element
                 from the previous owner. It can be done by receiving a
                 `{:request_socket_control, socket, pid}` message sent by this element to it's
@@ -60,7 +60,7 @@ defmodule Membrane.TCP.Source do
                 description: """
                 Defines the element's behavior if the TCP connection is closed by the peer:
                 - `:raise_error` - raise an error.
-                - `:send_eos` - send an `:end_of_stream` to the output pad.
+                - `:send_eos` - send an `:end_of_stream` on the output pad.
                 """
               ]
 

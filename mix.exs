@@ -1,7 +1,7 @@
 defmodule Membrane.TCP.MixProject do
   use Mix.Project
 
-  @version "0.6.0"
+  @version "0.6.1"
   @github_url "https://github.com/membraneframework/membrane_tcp_plugin"
 
   def project do
@@ -17,7 +17,8 @@ defmodule Membrane.TCP.MixProject do
       docs: docs(),
       deps: deps(),
       dialyzer: dialyzer(),
-      homepage_url: "https://membrane.stream"
+      homepage_url: "https://membrane.stream",
+      aliases: [docs: ["docs", &prepend_llms_links/1]]
     ]
   end
 
@@ -34,7 +35,6 @@ defmodule Membrane.TCP.MixProject do
     [
       main: "readme",
       extras: ["README.md", LICENSE: [title: "License"]],
-      formatters: ["html"],
       source_ref: "v#{@version}",
       nest_modules_by_prefix: [Membrane.TCP]
     ]
@@ -55,7 +55,7 @@ defmodule Membrane.TCP.MixProject do
     [
       {:membrane_core, "~> 1.0"},
       {:mockery, "~> 2.3.0", runtime: false},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false}
     ]
@@ -71,6 +71,28 @@ defmodule Membrane.TCP.MixProject do
       [plt_local_path: "priv/plts", plt_core_path: "priv/plts"] ++ opts
     else
       opts
+    end
+  end
+
+  defp prepend_llms_links(_) do
+    output_dir = docs()[:output] || "doc"
+    path = Path.join(output_dir, "llms.txt")
+
+    if File.exists?(path) do
+      existing = File.read!(path)
+
+      footer = """
+
+
+      ## See Also
+
+      - [Membrane Framework AI Skill](https://hexdocs.pm/membrane_core/skill.md)
+      - [Membrane Core](https://hexdocs.pm/membrane_core/llms.txt)
+      """
+
+      File.write!(path, String.trim_trailing(existing) <> footer)
+    else
+      IO.warn("#{path} not found — llms.txt was not generated, check your ex_doc configuration")
     end
   end
 end

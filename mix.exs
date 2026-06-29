@@ -55,7 +55,7 @@ defmodule Membrane.TCP.MixProject do
     [
       {:membrane_core, "~> 1.0"},
       {:mockery, "~> 2.3.0", runtime: false},
-      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.40.0", only: :dev, runtime: false},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false}
     ]
